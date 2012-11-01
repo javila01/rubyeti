@@ -4,6 +4,12 @@ require 'nokogiri'
 
 
 class ETI
+	def login(username, password)
+	end
+
+	def post_topic(topic_name, topic_content)
+	end
+
 	def get_topic_by_id(id)
 	end
 end
@@ -20,6 +26,13 @@ class ETI
 		@connection.enable_cookies = true
 		# posts to the login page my username and password
 		post_field = "b=" + username + "&p=" + password
+		@connection.http_post(post_field)
+	end
+
+	def post_topic(topic_name, topic_content)
+		
+		@connection.url = "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
+		post_field = "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=9adb9&submit=Post Message"
 		@connection.http_post(post_field)
 	end
 
