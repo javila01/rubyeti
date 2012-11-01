@@ -71,7 +71,9 @@ class ETI
 			timestamp = timestamp.partition("Posted:")[2]
 			timestamp = timestamp.partition("|")[0]
 
-			message_id = messages[i].text
+			message_id = messages[i]["href"]
+			message_id = message_id.partition("=")[2]
+			message_id = message_id.partition("&")[0]
 			content = contents[i].text
 
 			t.posts[i] =  Post.new(poster, timestamp, message_id, i+1, content)
