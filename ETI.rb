@@ -4,12 +4,20 @@ require 'nokogiri'
 
 
 class ETI
+	# logs a user into the site with their credentials
+	# should return true or false based on login success, does not yet
+	# should accept an argument to login via desktop or iphone, does not yet
 	def login(username, password)
 	end
 
+	# posts a topic with the specified name and content. sig is NOT automatically appended yet
+	# posts to the LUE tag only at the moment
 	def post_topic(topic_name, topic_content)
 	end
 
+	# retrieves a topic by id
+	# should return a topic object on success, or a failure indicator on fail. does not yet, just returns 
+	# topic object on success
 	def get_topic_by_id(id)
 	end
 end
@@ -30,7 +38,6 @@ class ETI
 	end
 
 	def post_topic(topic_name, topic_content)
-		
 		@connection.url = "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
 		post_field = "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=9adb9&submit=Post Message"
 		@connection.http_post(post_field)
