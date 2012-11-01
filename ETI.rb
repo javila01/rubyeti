@@ -2,6 +2,12 @@ require 'rubygems'
 require 'curb'
 require 'nokogiri'
 
+
+class ETI
+	def get_topic_by_id(id)
+	end
+end
+
 class ETI
 	def initialize
 
@@ -80,6 +86,7 @@ class ETI
 			i += 1
 		end
 		puts t.to_s
+		return t
 
 	end
 end
