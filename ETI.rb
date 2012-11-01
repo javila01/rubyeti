@@ -23,9 +23,6 @@ class ETI
 end
 
 class ETI
-	def initialize
-
-	end
 
 	def login(username, password)
 		# creates new curl object with the login page as its target
@@ -82,10 +79,15 @@ class ETI
 		# gets a list of the posters
 		posters = html_doc.xpath('//div[@class = "message-container"]/div/a[contains(@href, "/profile.php?user=")]')
 		
+		# gets a list of the timestamps. these are still embedded in other text, the for loop
+		# takes care of extracting them
 		timestamps = html_doc.xpath('//div[@class = "message-container"]/div')
 
+		# gets a list of the link nodes with message_id
+		# its embedded in the href, the for loop extracts it
 		messages = html_doc.xpath('//div[@class = "message-container"]/div/a[contains(@href, "message.php?id=")]')
 
+		# gets the content of the posts
 		contents = html_doc.xpath('//td[@class = "message"]')
 
 		# gets the first page of posts
@@ -100,6 +102,7 @@ class ETI
 			message_id = messages[i]["href"]
 			message_id = message_id.partition("=")[2]
 			message_id = message_id.partition("&")[0]
+			
 			content = contents[i].text
 
 			t.posts[i] =  Post.new(poster, timestamp, message_id, i+1, content)
