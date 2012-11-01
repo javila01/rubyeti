@@ -19,17 +19,27 @@ class ETI
 
 	def get_topic_by_id(id)
 		# sets the curl object url to a page on eti i want to get
-		url = "http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s
+		url = "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
 		@connection.url = url
 		# gets the post
 		@connection.http_get
-		#puts @connection.body_str
 
+		# creates a new topic to store the data in
 		t = Topic.new
 
 		html_source = @connection.body_str
-		
+		# creates a nokogiri object for parsing the topic
 		html_doc = Nokogiri::HTML(html_source)
+
+		divs = html_doc.xpath('//div')
+		if(divs[divs.size-1].child.text.match('a reminder')!=nil) 
+			url = "http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s
+			@connection.url = url
+			@connection.http_get
+			html_source = @connection.body_str
+			html_doc = Nokogiri::HTML(html_source)
+		end
+		# gets the topic id
 		suggest_tag_link = html_doc.xpath('//a[contains(@href, "edittags.php")]').text
 		t.topic_id = 0
 
@@ -40,18 +50,25 @@ class ETI
 		posters = html_doc.xpath('//div[@class = "message-container"]/div/a[contains(@href, "/profile.php?user=")]')
 		
 		timestamps = html_doc.xpath('//div[@class = "message-container"]/div')
-		# gets the first post
-		for i in 0..49
-			poster = posters[i].text
+
+		messages = html_doc.xpath('//div[@class = "message-container"]/div/a[contains(@href, "message.php?id=")]')
+
+		contents = html_doc.xpath('//td[@class = "message"]')
+
+		# gets the first page of posts
+		i = 0
+		for p in posters
+			poster = p.text
 
 			timestamp = timestamps[i].text
 			timestamp = timestamp.partition("Posted:")[2]
 			timestamp = timestamp.partition("|")[0]
 
-			message_id = html_doc.xpath('//div[@class = "message-container"]/div/a[contains(@href, "message.php?id=")]')[i].text
-			content = html_doc.xpath('//td[@class = "message"]')[i].text
+			message_id = messages[i].text
+			content = contents[i].text
 
 			t.posts[i] =  Post.new(poster, timestamp, message_id, i+1, content)
+			i += 1
 		end
 		puts t.to_s
 
@@ -101,9 +118,10 @@ puts "Enter your password: "
 password = gets
 password = password.partition("\n")[0]
 site.login(username, password)
-puts username
-puts password
-site.get_topic_by_id(1)
+puts "Enter topic id to retrieve: "
+id = gets
+id = id.partition("\n")[0]
+site.get_topic_by_id(id)
 
 =begin
 t = Topic.new(1, "Programming Topic x, where x = imgay", "Chris")
