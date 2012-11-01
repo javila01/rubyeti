@@ -5,9 +5,9 @@ require 'nokogiri'
 
 class ETI
 	# logs a user into the site with their credentials
-	# should return true or false based on login success, does not yet
-	# should accept an argument to login via desktop or iphone, does not yet
-	def login(username, password)
+	# with the session they specify
+	# should return true or false based on login success
+	def login(username, password, session)
 	end
 
 	# posts a topic with the specified name and content. sig is NOT automatically appended yet
@@ -223,7 +223,7 @@ puts "Enter your password: "
 password = gets
 password = password.partition("\n")[0]
 site.login(username, password)
-site.create_private_message(4730, "im gay", "sending this from a ruby script omg")
+#site.create_private_message(4730, "im gay", "sending this from a ruby script omg")
 =begin
 puts "Enter topic id to retrieve: "
 id = gets
