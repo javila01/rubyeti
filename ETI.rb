@@ -31,6 +31,10 @@ class ETI
 		# creates a nokogiri object for parsing the topic
 		html_doc = Nokogiri::HTML(html_source)
 
+		# checks to see if the topic is getting an archive redirect,
+		# by checking to see if the content of the last div is the 
+		# "reminder for all that we fought against", since thats where
+		# the archive redirect cuts off
 		divs = html_doc.xpath('//div')
 		if(divs[divs.size-1].child.text.match('a reminder')!=nil) 
 			url = "http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s
@@ -39,9 +43,12 @@ class ETI
 			html_source = @connection.body_str
 			html_doc = Nokogiri::HTML(html_source)
 		end
+
 		# gets the topic id
-		suggest_tag_link = html_doc.xpath('//a[contains(@href, "edittags.php")]').text
-		t.topic_id = 0
+		suggest_tag_link = html_doc.xpath('//a[contains(@href, "edittags.php")]')
+		link = suggest_tag_link[0]["href"]
+		link = link.partition("=")[2]
+		t.topic_id = link.to_i
 
 		# gets the topic title
 		t.topic_title = html_doc.xpath('//h1').text
