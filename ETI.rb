@@ -42,7 +42,7 @@ class ETI
 
 	def get_topic_by_id(id)
 		# sets the curl object url to a page on eti i want to get
-		url = "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
+		url = "http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s
 		@connection.url = url
 		# gets the post
 		@connection.http_get
@@ -54,13 +54,13 @@ class ETI
 		# creates a nokogiri object for parsing the topic
 		html_doc = Nokogiri::HTML(html_source)
 
+
 		# checks to see if the topic is getting an archive redirect,
 		# by checking to see if the content of the last div is the 
 		# "reminder for all that we fought against", since thats where
 		# the archive redirect cuts off
-		divs = html_doc.xpath('//div')
-		if(divs[divs.size-1].child.text.match('a reminder')!=nil) 
-			url = "http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s
+		if(html_source.size<=0) 
+			url = "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
 			@connection.url = url
 			@connection.http_get
 			html_source = @connection.body_str
@@ -102,7 +102,7 @@ class ETI
 			message_id = messages[i]["href"]
 			message_id = message_id.partition("=")[2]
 			message_id = message_id.partition("&")[0]
-			
+
 			content = contents[i].text
 
 			t.posts[i] =  Post.new(poster, timestamp, message_id, i+1, content)
