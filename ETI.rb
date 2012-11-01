@@ -20,27 +20,67 @@ class ETI
 	# topic object on success
 	def get_topic_by_id(id)
 	end
+
+	# creates a new private message thread with the user specified by the userid user
+	# does NOT send your sig automatically
+	# only works with userids currently
+	def create_private_message(user, subject, message)
+	end
 end
 
 class ETI
 
-	def login(username, password)
-		# creates new curl object with the login page as its target
-		@connection = Curl::Easy.new("https://endoftheinter.net/index.php")
+	def initialize
+		@login = false
+	end
+
+	def login(username, password, session="iphone")
+
+		# sets up the target connection url and post fields based on whether
+		# the user wants a desktop or mobile eti session
+		if session=="desktop"
+			@connection = Curl::Easy.new("https://endoftheinter.net/index.php")
+			post_field = "b=" + username + "&p=" + password
+		elsif session=="iphone"
+			@connection = Curl::Easy.new("http://iphone.endoftheinter.net/")
+			post_field = "username=" + username + "&password=" + password
+		else return false, "invalid session"
+		end
+
 		# allows cookies, so we can stay logged into eti
 		@connection.enable_cookies = true
+
 		# posts to the login page my username and password
-		post_field = "b=" + username + "&p=" + password
 		@connection.http_post(post_field)
+		
+		# tests to see if the login succeeded
+		@connection.url = "http://archives.endoftheinter.net/showmessages.php?topic=1"
+		@connection.http_get
+		html_source = @connection.body_str
+		if html_source.size==0 
+			@login = false
+			return false, "bad login"
+		else 
+			@login = true
+			return true
+		end
+		
 	end
 
 	def post_topic(topic_name, topic_content)
+		# checks to see if the user is logged in
+		if(!@login)
+			return false, "not logged in"
+		end
 		@connection.url = "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
 		post_field = "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=9adb9&submit=Post Message"
 		@connection.http_post(post_field)
 	end
 
 	def get_topic_by_id(id)
+		if(!@login) 
+			return false, "not logged in"
+		end
 		# sets the curl object url to a page on eti i want to get
 		url = "http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s
 		@connection.url = url
@@ -55,15 +95,17 @@ class ETI
 		html_doc = Nokogiri::HTML(html_source)
 
 
-		# checks to see if the topic is getting an archive redirect,
-		# by checking to see if the content of the last div is the 
-		# "reminder for all that we fought against", since thats where
-		# the archive redirect cuts off
-		if(html_source.size<=0) 
+		# checks to see if the topic is getting a redirect,
+		# redirects from invalid archive topics simply give a blank
+		# html_source
+		if(html_source.size==0) 
 			url = "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
 			@connection.url = url
 			@connection.http_get
 			html_source = @connection.body_str
+			if(html_source.size==0)
+				return false, "invalid topic id"
+			end
 			html_doc = Nokogiri::HTML(html_source)
 		end
 
@@ -112,6 +154,30 @@ class ETI
 		return t
 
 	end
+
+	def create_private_message(user, subject, message)
+		if(!@login)
+			return false, "not logged in"
+		end
+		# this block is to get the "h" value from the post message page
+		# this seems to be unique to each user, not sure exactly how
+		# so for now im just loading up the new PM thread page and grabbing it
+		# from the html source
+		@connection.url = "http://endoftheinter.net/postmsg.php?puser=" + user.to_s
+		@connection.http_get
+		html_source = @connection.body_str
+		html_doc = Nokogiri::HTML(html_source)
+		hash_field = html_doc.xpath('//input[@name = "h"]')
+		hash = hash_field[0]["value"]
+
+		# posts the pm information to the connection
+		# DOES NOT send your sig automatically
+		@connection.url = "http://endoftheinter.net/postmsg.php"
+		post_field = "puser=" + user.to_s + "&title=" + subject.to_s + "&message=" + message.to_s + "&h=" + hash.to_s + "&submit=Submit Message"
+		@connection.enable_cookies = true
+		@connection.http_post(post_field)
+	end
+
 end
 
 class Topic
@@ -157,16 +223,10 @@ puts "Enter your password: "
 password = gets
 password = password.partition("\n")[0]
 site.login(username, password)
+site.create_private_message(4730, "im gay", "sending this from a ruby script omg")
+=begin
 puts "Enter topic id to retrieve: "
 id = gets
 id = id.partition("\n")[0]
-site.get_topic_by_id(id)
-
-=begin
-t = Topic.new(1, "Programming Topic x, where x = imgay", "Chris")
-p1 = Post.new("Chris", "10/31/2012 11:12 PM", "9", "1", "im gay")
-t.posts << p1
-p2 = Post.new("citizenray", "10/31/2012 11:13 PM", "9", "2", "haha same yolo")
-t.posts << p2
-puts t.to_s
+puts site.get_topic_by_id(id)
 =end
