@@ -1,7 +1,7 @@
+#!/usr/bin/env ruby
 require 'rubygems'
 require 'curb'
 require 'nokogiri'
-
 
 class ETI
 	# logs a user into the site with their credentials
@@ -19,6 +19,11 @@ class ETI
 	# should return a topic object on success, or a failure indicator on fail. does not yet, just returns 
 	# topic object on success
 	def get_topic_by_id(id)
+	end
+
+	# returns true if the user with userid specified is online
+	# and false if not
+	def is_user_online(userid)
 	end
 
 	# creates a new private message thread with the user specified by the userid user
@@ -155,6 +160,19 @@ class ETI
 
 	end
 
+	def is_user_online(userid)
+		@connection.url = "http://endoftheinter.net/profile.php?user=" + userid.to_s
+		@connection.http_get
+		html_source = @connection.body_str
+		html_parse = Nokogiri::HTML(html_source)
+		online_now = html_parse.xpath('//td[contains(text(), "online now")]');
+		if online_now.size == 0
+			return false
+		else
+			return true
+		end
+	end
+
 	def create_private_message(user, subject, message)
 		if(!@login)
 			return false, "not logged in"
@@ -220,13 +238,16 @@ puts "Enter your username: "
 username = gets
 username = username.partition("\n")[0]
 puts "Enter your password: "
+system 'stty -echo'
 password = gets
+system 'stty echo'
 password = password.partition("\n")[0]
 site.login(username, password)
-#site.create_private_message(4730, "im gay", "sending this from a ruby script omg")
+puts site.is_user_online(1)
+
 =begin
 puts "Enter topic id to retrieve: "
 id = gets
 id = id.partition("\n")[0]
-puts site.get_topic_by_id(id)
+site.get_topic_by_id(id)
 =end
