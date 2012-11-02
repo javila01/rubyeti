@@ -21,8 +21,7 @@ class ETI
 	end
 
 	# retrieves a topic by id
-	# should return a topic object on success, or a failure indicator on fail. does not yet, just returns 
-	# topic object on success
+	# returns a topic object on success, and should (doesn't yet) return failure indicator on fail
 	# DOES NOT WORK WITH ANONYMOUS TOPICS
 	def get_topic_by_id(id)
 	end
@@ -339,29 +338,3 @@ class Post
 		"===========================\nFrom: " + @posted_by + " Posted: " + @timestamp + " #" + @post_number.to_s + "\n\n" + content + "\n===========================\n\n"
 	end
 end
-
-site = ETI.new
-puts "Enter your username: "
-username = gets
-username = username.partition("\n")[0]
-puts "Enter your password: "
-system 'stty -echo'
-password = gets
-system 'stty echo'
-password = password.partition("\n")[0]
-site.login(username, password)
-puts "Enter user: "
-username = gets
-if(site.is_user_online(username)) 
-	puts "Online now!"
-else 
-	puts "Offline"
-end
-#puts site.get_topic_list("LUE-Anonymous")
-#puts site.get_topic_by_id(1).tc
-=begin
-puts "Enter a topic id to retrieve: "
-topic_id = gets
-topic_id = topic_id.partition("\n")[0]
-site.get_topic_by_id(topic_id)
-=end
