@@ -25,6 +25,11 @@ class ETI
 	def get_topic_by_id(id)
 	end
 
+	# returns the userid of the specified username
+	# returns false and error message if not found
+	def get_user_id(username)
+	end
+
 	# returns true if the user with userid specified is online
 	# and false if not
 	def is_user_online(userid)
@@ -145,6 +150,23 @@ class ETI
 		t = parse_topic_html(html_source)
 		#puts t
 		return t
+
+	end
+
+	def get_user_id(username) 
+		if(!@login)
+			return false, "not logged in"
+		end
+		@connection.url = "http://endoftheinter.net/async-user-query.php?q=" + username
+		@connection.http_get
+		user_search_source = @connection.body_str
+		user_search_source = user_search_source.partition(",\"")[2]
+		user_search_source = user_search_source.partition("\"")[0]
+		if(user_search_source.size==0)
+			return false, "user not found"
+		else
+			return user_search_source
+		end
 
 	end
 
@@ -303,7 +325,11 @@ password = gets
 system 'stty echo'
 password = password.partition("\n")[0]
 site.login(username, password)
-puts site.get_topic_list("LUE-Anonymous")
+puts "Enter user to get userid of: "
+user = gets
+user = user.partition("\n")[0]
+puts site.get_user_id(user)
+#puts site.get_topic_list("LUE-Anonymous")
 #puts site.get_topic_by_id(1).tc
 =begin
 puts "Enter a topic id to retrieve: "
