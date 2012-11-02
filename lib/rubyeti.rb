@@ -68,13 +68,14 @@ class ETI
 		elsif session=="iphone"
 			@connection = Curl::Easy.new("http://iphone.endoftheinter.net/")
 			post_field = "username=" + username + "&password=" + password
-		else return false, "invalid session"
+		else 
+			return false, "invalid session"
 		end
 
 		# allows cookies, so we can stay logged into eti
 		@connection.enable_cookies = true
 
-		# posts to the login page my username and password
+		# posts to the login page the username and password
 		@connection.http_post(post_field)
 		
 		# tests to see if the login succeeded
