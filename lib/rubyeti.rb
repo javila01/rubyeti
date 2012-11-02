@@ -16,12 +16,14 @@ class ETI
 	end
 
 	# retrieves a topic list object, which is the first page of topics matching the tag combo entered
+	# DOES NOT WORK WITH ANONYMOUS TOPICS
 	def get_topic_list(tag_list)
 	end
 
 	# retrieves a topic by id
 	# should return a topic object on success, or a failure indicator on fail. does not yet, just returns 
 	# topic object on success
+	# DOES NOT WORK WITH ANONYMOUS TOPICS
 	def get_topic_by_id(id)
 	end
 
@@ -30,9 +32,12 @@ class ETI
 	def get_user_id(username)
 	end
 
+	# return true if the user is online
+	def is_user_online(username)
+	end
+
 	# returns true if the user with userid specified is online
-	# and false if not
-	def is_user_online(userid)
+	def is_user_online_by_id(userid)
 	end
 
 	# creates a new private message thread with the user specified by the userid user
@@ -170,7 +175,27 @@ class ETI
 
 	end
 
-	def is_user_online(userid)
+	def is_user_online(username)
+		if(!@login)
+			return false, "not logged in"
+		end
+		user_id = get_user_id(username)
+		@connection.url = "http://endoftheinter.net/profile.php?user=" + user_id.to_s
+		@connection.http_get
+		html_source = @connection.body_str
+		html_parse = Nokogiri::HTML(html_source)
+		online_now = html_parse.xpath('//td[contains(text(), "online now")]');
+		if online_now.size == 0
+			return false
+		else
+			return true
+		end
+	end
+
+	def is_user_online_by_id(userid)
+		if(!@login)
+			return false, "not logged in"
+		end
 		@connection.url = "http://endoftheinter.net/profile.php?user=" + userid.to_s
 		@connection.http_get
 		html_source = @connection.body_str
@@ -325,10 +350,13 @@ password = gets
 system 'stty echo'
 password = password.partition("\n")[0]
 site.login(username, password)
-puts "Enter user to get userid of: "
-user = gets
-user = user.partition("\n")[0]
-puts site.get_user_id(user)
+puts "Enter user: "
+username = gets
+if(site.is_user_online(username)) 
+	puts "Online now!"
+else 
+	puts "Offline"
+end
 #puts site.get_topic_list("LUE-Anonymous")
 #puts site.get_topic_by_id(1).tc
 =begin
