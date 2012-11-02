@@ -15,6 +15,10 @@ class ETI
 	def post_topic(topic_name, topic_content)
 	end
 
+	# retrieves a topic list object, which is the first page of topics matching the tag combo entered
+	def get_topic_list(tag_list)
+	end
+
 	# retrieves a topic by id
 	# should return a topic object on success, or a failure indicator on fail. does not yet, just returns 
 	# topic object on success
@@ -82,6 +86,35 @@ class ETI
 		@connection.http_post(post_field)
 	end
 
+	def get_topic_list(tag_list)
+		if(!@login)
+			return false, "not logged in"
+		end
+
+		append = ""
+		for tag in tag_list
+			append += tag
+		end
+		url 			= "http://boards.endoftheinter.net/topics/" + append
+		@connection.url = url
+		@connection.http_get
+
+		html_source = @connection.body_str
+		html_doc 	= Nokogiri::HTML(html_source)
+		topic_ids	= html_doc.xpath('//td[@class = "oh"]/div[@class = "fl"]/a')
+
+		topic_list_return = TopicList.new
+
+		for topic in topic_ids
+			topic_id = topic["href"]
+			topic_id = topic_id.partition("?topic=")[2]
+			t = get_topic_by_id(topic_id)
+			topic_list_return.topics << t
+		end
+
+		return topic_list_return
+	end
+
 	def get_topic_by_id(id)
 		if(!@login) 
 			return false, "not logged in"
@@ -92,14 +125,10 @@ class ETI
 		# gets the post
 		@connection.http_get
 
-		# creates a new topic to store the data in
-		t = Topic.new
+		
 
 		html_source = @connection.body_str
-		# creates a nokogiri object for parsing the topic
-		html_doc = Nokogiri::HTML(html_source)
-
-
+		
 		# checks to see if the topic is getting a redirect,
 		# redirects from invalid archive topics simply give a blank
 		# html_source
@@ -111,51 +140,10 @@ class ETI
 			if(html_source.size==0)
 				return false, "invalid topic id"
 			end
-			html_doc = Nokogiri::HTML(html_source)
 		end
 
-		# gets the topic id
-		suggest_tag_link = html_doc.xpath('//a[contains(@href, "edittags.php")]')
-		link = suggest_tag_link[0]["href"]
-		link = link.partition("=")[2]
-		t.topic_id = link.to_i
-
-		# gets the topic title
-		t.topic_title = html_doc.xpath('//h1').text
-
-		# gets a list of the posters
-		posters = html_doc.xpath('//div[@class = "message-container"]/div/a[contains(@href, "/profile.php?user=")]')
-		
-		# gets a list of the timestamps. these are still embedded in other text, the for loop
-		# takes care of extracting them
-		timestamps = html_doc.xpath('//div[@class = "message-container"]/div')
-
-		# gets a list of the link nodes with message_id
-		# its embedded in the href, the for loop extracts it
-		messages = html_doc.xpath('//div[@class = "message-container"]/div/a[contains(@href, "message.php?id=")]')
-
-		# gets the content of the posts
-		contents = html_doc.xpath('//td[@class = "message"]')
-
-		# gets the first page of posts
-		i = 0
-		for p in posters
-			poster = p.text
-
-			timestamp = timestamps[i].text
-			timestamp = timestamp.partition("Posted:")[2]
-			timestamp = timestamp.partition("|")[0]
-
-			message_id = messages[i]["href"]
-			message_id = message_id.partition("=")[2]
-			message_id = message_id.partition("&")[0]
-
-			content = contents[i].text
-
-			t.posts[i] =  Post.new(poster, timestamp, message_id, i+1, content)
-			i += 1
-		end
-		puts t.to_s
+		t = parse_topic_html(html_source)
+		#puts t
 		return t
 
 	end
@@ -183,37 +171,110 @@ class ETI
 		# from the html source
 		@connection.url = "http://endoftheinter.net/postmsg.php?puser=" + user.to_s
 		@connection.http_get
-		html_source = @connection.body_str
-		html_doc = Nokogiri::HTML(html_source)
-		hash_field = html_doc.xpath('//input[@name = "h"]')
-		hash = hash_field[0]["value"]
+		html_source 	= @connection.body_str
+		html_doc 		= Nokogiri::HTML(html_source)
+		hash_field 		= html_doc.xpath('//input[@name = "h"]')
+		hash 			= hash_field[0]["value"]
 
 		# posts the pm information to the connection
 		# DOES NOT send your sig automatically
 		@connection.url = "http://endoftheinter.net/postmsg.php"
-		post_field = "puser=" + user.to_s + "&title=" + subject.to_s + "&message=" + message.to_s + "&h=" + hash.to_s + "&submit=Submit Message"
+		post_field 		= "puser=" + user.to_s + "&title=" + subject.to_s + "&message=" + message.to_s + "&h=" + hash.to_s + "&submit=Submit Message"
 		@connection.http_post(post_field)
+	end
+
+private
+	def parse_topic_html(html_source)
+		# creates a new topic to store the data in
+		t = Topic.new
+
+		# creates a nokogiri object for parsing the topic
+		html_doc 			= Nokogiri::HTML(html_source)
+
+		# gets the topic id
+		suggest_tag_link 	= html_doc.xpath('//a[contains(@href, "edittags.php")]')
+		link 				= suggest_tag_link[0]["href"]
+		link 				= link.partition("=")[2]
+		t.topic_id 			= link.to_i
+
+		# gets the topic title
+		t.topic_title 		= html_doc.xpath('//h1').text
+
+		# gets a list of the posters
+		posters 			= html_doc.xpath('//div[@class = "message-container"]/div[@class = "message-top"]/a[contains(@href, "profile.php")]')
+		
+		# gets a list of the timestamps. these are still embedded in other text, the for loop
+		# takes care of extracting them
+		timestamps 			= html_doc.xpath('//div[@class = "message-container"]')
+
+		# gets a list of the link nodes with message_id
+		# its embedded in the href, the for loop extracts it
+		messages 			= html_doc.xpath('//div[@class = "message-container"]/div[@class="message-top"]/a[contains(@href, "message.php")]')
+
+		# gets the content of the posts
+		contents 			= html_doc.xpath('//td[@class = "message"]')
+
+		# gets the first page of posts
+		i = 0
+		for p in posters
+			poster 		= p.text
+			# gets the TC
+			if(i==0) 
+				t.tc = poster
+			end
+
+			timestamp 	= timestamps[i].text
+			timestamp 	= timestamp.partition("Posted:")[2]
+			timestamp 	= timestamp.partition("|")[0]
+
+			message_id 	= messages[i]["href"]
+			message_id 	= message_id.partition("=")[2]
+			message_id	= message_id.partition("&")[0]
+
+			content 	= contents[i].text
+
+			t.posts[i] 	=  Post.new(poster, timestamp, message_id, i+1, content)
+			i 			+= 1
+		end
+		return t
+	end
+
+end
+
+class TopicList
+	attr_accessor :topics
+
+	def initialize(topics = [])
+		@topics = topics
+	end
+
+	def to_s
+		output = "\n"
+		for topic in @topics
+			output += topic.topic_title + "\t\t| " + topic.tc + "\n"
+		end 
+		output
 	end
 
 end
 
 class Topic
-	attr_accessor :topic_id, :topic_title, :tc, :posts
+	attr_accessor :topic_id, :topic_title, :tc, :posts, :tags, :num_msgs, :last_post
 
-	def initialize(topic_id = 0, topic_title = "", tc = "", posts = [])
+	def initialize(topic_id = 0, topic_title = "", tc = "", posts = [], tags = [], num_msgs = 0, last_post = 0)
 		@topic_id = topic_id
 		@topic_title = topic_title
 		@tc = tc
 		@posts = posts
+		@tags = tags
+		@num_msgs = num_msgs
+		@last_post = last_post
 	end
 
 	def to_s
 		output = "\n" + @topic_title + "\n\n"
-		puts output
-		puts posts.to_s
+		output += posts
 	end
-
-
 end
 
 class Post
@@ -242,3 +303,11 @@ password = gets
 system 'stty echo'
 password = password.partition("\n")[0]
 site.login(username, password)
+puts site.get_topic_list("LUE-Anonymous")
+#puts site.get_topic_by_id(1).tc
+=begin
+puts "Enter a topic id to retrieve: "
+topic_id = gets
+topic_id = topic_id.partition("\n")[0]
+site.get_topic_by_id(topic_id)
+=end
