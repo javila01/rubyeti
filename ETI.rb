@@ -174,7 +174,6 @@ class ETI
 		# DOES NOT send your sig automatically
 		@connection.url = "http://endoftheinter.net/postmsg.php"
 		post_field = "puser=" + user.to_s + "&title=" + subject.to_s + "&message=" + message.to_s + "&h=" + hash.to_s + "&submit=Submit Message"
-		@connection.enable_cookies = true
 		@connection.http_post(post_field)
 	end
 
@@ -224,9 +223,8 @@ password = gets
 password = password.partition("\n")[0]
 site.login(username, password)
 #site.create_private_message(4730, "im gay", "sending this from a ruby script omg")
-=begin
+
 puts "Enter topic id to retrieve: "
 id = gets
 id = id.partition("\n")[0]
-puts site.get_topic_by_id(id)
-=end
+site.get_topic_by_id(id)
