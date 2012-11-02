@@ -242,10 +242,3 @@ password = gets
 system 'stty echo'
 password = password.partition("\n")[0]
 site.login(username, password)
-<<<<<<< HEAD:ETI.rb
-#site.create_private_message(4730, "im gay", "sending this from a ruby script omg")
-
-puts "Enter topic id to retrieve: "
-id = gets
-id = id.partition("\n")[0]
-site.get_topic_by_id(id)
