@@ -243,11 +243,7 @@ password = gets
 system 'stty echo'
 password = password.partition("\n")[0]
 site.login(username, password)
-puts site.is_user_online(1)
-
-=begin
 puts "Enter topic id to retrieve: "
 id = gets
 id = id.partition("\n")[0]
 site.get_topic_by_id(id)
-=end
