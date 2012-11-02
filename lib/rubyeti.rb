@@ -41,8 +41,11 @@ class ETI
 
 	# creates a new private message thread with the user specified by the userid user
 	# does NOT send your sig automatically
-	# only works with userids currently
-	def create_private_message(user, subject, message)
+	# both subject AND message must be >= 5 characters, or will fail
+	def create_private_message(username, subject, message)
+	end
+
+	def create_private_message_by_id(userid, subject, message)
 	end
 end
 
@@ -53,6 +56,9 @@ class ETI
 	end
 
 	def login(username, password, session="iphone")
+
+		username = username.partition("\n")[0]
+		password = password.partition("\n")[0]
 
 		# sets up the target connection url and post fields based on whether
 		# the user wants a desktop or mobile eti session
@@ -93,6 +99,7 @@ class ETI
 		@connection.url = "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
 		post_field = "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=9adb9&submit=Post Message"
 		@connection.http_post(post_field)
+		true
 	end
 
 	def get_topic_list(tag_list)
@@ -178,14 +185,17 @@ class ETI
 		if(!@login)
 			return false, "not logged in"
 		end
-		user_id = get_user_id(username)
+		user_id, error = get_user_id(username)
+		if(!user_id)
+			return false, error
+		end
 		@connection.url = "http://endoftheinter.net/profile.php?user=" + user_id.to_s
 		@connection.http_get
 		html_source = @connection.body_str
 		html_parse = Nokogiri::HTML(html_source)
 		online_now = html_parse.xpath('//td[contains(text(), "online now")]');
 		if online_now.size == 0
-			return false
+			return false, "Offline"
 		else
 			return true
 		end
@@ -207,7 +217,18 @@ class ETI
 		end
 	end
 
-	def create_private_message(user, subject, message)
+	def create_private_message(username, subject, message)
+		if(!@login)
+			return false, "not logged in"
+		end
+		userid, error = get_user_id(username)
+		if(!userid)
+			return false, error
+		end
+		create_private_message_by_id(userid, subject, message)
+	end
+
+	def create_private_message_by_id(userid, subject, message)
 		if(!@login)
 			return false, "not logged in"
 		end
@@ -215,7 +236,7 @@ class ETI
 		# this seems to be unique to each user, not sure exactly how
 		# so for now im just loading up the new PM thread page and grabbing it
 		# from the html source
-		@connection.url = "http://endoftheinter.net/postmsg.php?puser=" + user.to_s
+		@connection.url = "http://endoftheinter.net/postmsg.php?puser=" + userid.to_s
 		@connection.http_get
 		html_source 	= @connection.body_str
 		html_doc 		= Nokogiri::HTML(html_source)
@@ -225,7 +246,7 @@ class ETI
 		# posts the pm information to the connection
 		# DOES NOT send your sig automatically
 		@connection.url = "http://endoftheinter.net/postmsg.php"
-		post_field 		= "puser=" + user.to_s + "&title=" + subject.to_s + "&message=" + message.to_s + "&h=" + hash.to_s + "&submit=Submit Message"
+		post_field 		= "puser=" + userid.to_s + "&title=" + subject.to_s + "&message=" + message.to_s + "&h=" + hash.to_s + "&submit=Send Message"
 		@connection.http_post(post_field)
 	end
 
