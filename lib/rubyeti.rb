@@ -1,12 +1,21 @@
+# RubyETI
+# A Ruby interface to ETI
+# Designed by Christopher Lenart
+# Open Source
+# https://github.com/clenart/rubyeti
+
 #!/usr/bin/env ruby
 require 'rubygems'
 require 'curb'
 require 'nokogiri'
 
+# Uses Ruby style exceptions
+# All exceptions specific to this program are subclasses of ETIError
+# All functions throw LoginError when the user is not logged into ETI
 class RubyETI
 	# logs a user into the site with their credentials
-	# with the session they specify
-	# should return true or false based on login success
+	# with the session ("desktop" or "iphone") they specify
+	# returns true on success
 	def login(username, password, session)
 	end
 
@@ -17,31 +26,40 @@ class RubyETI
 
 	# retrieves a topic list object, which is the first page of topics matching the tag combo entered
 	# DOES NOT WORK WITH ANONYMOUS TOPICS
+	# throws TopicError
 	def get_topic_list(tag_list)
 	end
 
 	# retrieves a topic by id
 	# returns a topic object on success, and should (doesn't yet) return failure indicator on fail
 	# DOES NOT WORK WITH ANONYMOUS TOPICS
+	# throws TopicError
 	def get_topic_by_id(id)
 	end
 
 	# returns the userid of the specified username
 	# returns false and error message if not found
+	# throws UserError
 	def get_user_id(username)
 	end
 
-	# return true if the user is online
+	# returns true if online
+	# false if not
+	# throws UserError
 	def is_user_online(username)
 	end
 
-	# returns true if the user with userid specified is online
+	# returns true if online
+	# false if not
+	# throws UserError
 	def is_user_online_by_id(userid)
 	end
 
 	# creates a new private message thread with the user specified by the userid user
 	# does NOT send your sig automatically
 	# both subject AND message must be >= 5 characters, or will fail
+	# does not work with *special* characters
+	# throws UserError
 	def create_private_message(username, subject, message)
 	end
 
