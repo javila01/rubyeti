@@ -1,8 +1,10 @@
 # RubyETI
 # A Ruby interface to ETI
 # Designed by Christopher Lenart
-# Open Source
+# Contact: clenart1@gmail.com
+# Open Source. 
 # https://github.com/clenart/rubyeti
+# Linking to my github in your documentation would be greatly appreciated :)
 
 #!/usr/bin/env ruby
 require 'rubygems'
@@ -86,7 +88,6 @@ class RubyETI
 	end
 
 	def login(username, password, session="iphone")
-
 		username = username.partition("\n")[0]
 		password = password.partition("\n")[0]
 
@@ -108,25 +109,13 @@ class RubyETI
 		# posts to the login page the username and password
 		@connection.http_post(post_field)
 		
-		# tests to see if the login succeeded
-		@connection.url = "http://archives.endoftheinter.net/showmessages.php?topic=1"
-		@connection.http_get
-		html_source = @connection.body_str
-		if html_source.size==0 
-			@login = false
-			raise LoginError, "Username / password combination invalid"
-		else 
-			@login = true
-			return true
-		end
+		check_login
 		
 	end
 
 	def post_topic(topic_name, topic_content)
-		# checks to see if the user is logged in
-		if(!@login)
-			raise LoginError, "Not logged in to ETI"
-		end
+		check_login
+
 		@connection.url = "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
 		post_field = "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=9adb9&submit=Post Message"
 		@connection.http_post(post_field)
@@ -134,9 +123,7 @@ class RubyETI
 	end
 
 	def get_topic_list(tag_list)
-		if(!@login)
-			raise LoginError, "Not logged in to ETI"
-		end
+		check_login
 
 		append = ""
 		for tag in tag_list
@@ -163,9 +150,8 @@ class RubyETI
 	end
 
 	def get_topic_by_id(id)
-		if(!@login) 
-			raise LoginError, "Not logged in to ETI"
-		end
+		check_login
+
 		# sets the curl object url to a page on eti i want to get
 		url = "http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s
 		@connection.url = url
@@ -193,9 +179,8 @@ class RubyETI
 	end
 
 	def get_user_id(username) 
-		if(!@login)
-			raise LoginError, "Not logged in to ETI"
-		end
+		check_login
+
 		@connection.url = "http://endoftheinter.net/async-user-query.php?q=" + username
 		@connection.http_get
 		user_search_source = @connection.body_str
@@ -210,9 +195,8 @@ class RubyETI
 	end
 
 	def is_user_online(username)
-		if(!@login)
-			raise LoginError, "Not logged in to ETI"
-		end
+		check_login
+
 		user_id = get_user_id(username)
 
 		@connection.url = "http://endoftheinter.net/profile.php?user=" + user_id.to_s
@@ -228,9 +212,8 @@ class RubyETI
 	end
 
 	def is_user_online_by_id(userid)
-		if(!@login)
-			raise LoginError, "Not logged in to ETI"
-		end
+		check_login
+
 		@connection.url = "http://endoftheinter.net/profile.php?user=" + userid.to_s
 		@connection.http_get
 		html_source = @connection.body_str
@@ -252,9 +235,8 @@ class RubyETI
 	end
 
 	def create_private_message_by_id(userid, subject, message)
-		if(!@login)
-			raise LoginError, "Not logged in to ETI"
-		end
+		check_login
+
 		# this block is to get the "h" value from the post message page
 		# this seems to be unique to each user, not sure exactly how
 		# so for now im just loading up the new PM thread page and grabbing it
@@ -274,6 +256,18 @@ class RubyETI
 	end
 
 private
+	# tests to see if the session is active
+	def check_login
+		@connection.url = "http://archives.endoftheinter.net/showmessages.php?topic=1"
+		@connection.http_get
+		html_source = @connection.body_str
+		if html_source.size==0
+			raise LoginError, "Not logged in to ETI"
+		else 
+			return true
+		end
+	end
+
 	def parse_topic_html(html_source)
 		# creates a new topic to store the data in
 		t = Topic.new
