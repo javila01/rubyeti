@@ -3,7 +3,7 @@ require 'rubygems'
 require 'curb'
 require 'nokogiri'
 
-class ETI
+class rubyeti
 	# logs a user into the site with their credentials
 	# with the session they specify
 	# should return true or false based on login success
@@ -61,7 +61,7 @@ end
 class UserError < ETIError
 end
 
-class ETI
+class rubyeti
 
 	def initialize
 		@login = false
