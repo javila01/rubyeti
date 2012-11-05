@@ -6,6 +6,8 @@
 # https://github.com/clenart/rubyeti
 # Linking to my github in your documentation would be greatly appreciated :)
 
+# I assume no responsibility if you get banned for using this.
+
 #!/usr/bin/env ruby
 require 'rubygems'
 require 'curb'
