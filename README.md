@@ -1,4 +1,4 @@
-rubyeti
+RubyETI
 =======
 
 Ruby interface to ETI

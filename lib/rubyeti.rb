@@ -3,7 +3,7 @@ require 'rubygems'
 require 'curb'
 require 'nokogiri'
 
-class rubyeti
+class RubyETI
 	# logs a user into the site with their credentials
 	# with the session they specify
 	# should return true or false based on login success
@@ -61,7 +61,7 @@ end
 class UserError < ETIError
 end
 
-class rubyeti
+class RubyETI
 
 	def initialize
 		@login = false
@@ -154,8 +154,6 @@ class rubyeti
 		# gets the post
 		@connection.http_get
 
-		
-
 		html_source = @connection.body_str
 		
 		# checks to see if the topic is getting a redirect,
@@ -172,7 +170,6 @@ class rubyeti
 		end
 
 		t = parse_topic_html(html_source)
-		#puts t
 		return t
 
 	end
@@ -275,6 +272,14 @@ private
 		# gets the topic title
 		t.topic_title 		= html_doc.xpath('//h1').text
 
+		# sets the archived flag
+		h2 = html_doc.xpath('//h2')
+		if(h2.size > 1)
+			t.archived = true
+		else
+			t.archived = false
+		end
+
 		# gets a list of the posters
 		posters 			= html_doc.xpath('//div[@class = "message-container"]/div[@class = "message-top"]/a[contains(@href, "profile.php")]')
 		
@@ -311,6 +316,71 @@ private
 			t.posts[i] 	=  Post.new(poster, timestamp, message_id, i+1, content)
 			i 			+= 1
 		end
+
+		# retrieve a list of links to the next pages of the topic
+		next_page_links = html_doc.xpath('//div[@id = "u0_2"]/span')
+		number_of_pages = next_page_links[0].text.to_i
+		# if no links exist, return
+		if number_of_pages == 1
+			return t
+		else
+			for i in 0..number_of_pages
+				t = parse_topic_page(t,i)
+			end
+		end
+
+		return t
+	end
+
+	def parse_topic_page(t, page)
+		if t.archived
+			suburl = "archives"
+		else
+			suburl = "boards"
+		end
+		url = "http://" + suburl + ".endoftheinter.net/showmessages.php?topic=" + t.topic_id.to_s + "&page=" + page.to_s
+		@connection.url = url
+		# gets the post
+		@connection.http_get
+
+		html_source = @connection.body_str
+
+		html_doc = Nokogiri::HTML(html_source)
+
+		# gets a list of the posters
+		posters 			= html_doc.xpath('//div[@class = "message-container"]/div[@class = "message-top"]/a[contains(@href, "profile.php")]')
+		
+		# gets a list of the timestamps. these are still embedded in other text, the for loop
+		# takes care of extracting them
+		timestamps 			= html_doc.xpath('//div[@class = "message-container"]')
+
+		# gets a list of the link nodes with message_id
+		# its embedded in the href, the for loop extracts it
+		messages 			= html_doc.xpath('//div[@class = "message-container"]/div[@class="message-top"]/a[contains(@href, "message.php")]')
+
+		# gets the content of the posts
+		contents 			= html_doc.xpath('//td[@class = "message"]')
+
+		# gets the first page of posts
+		i = 0
+		for p in posters
+			poster 		= p.text
+
+			timestamp 	= timestamps[i].text
+			timestamp 	= timestamp.partition("Posted:")[2]
+			timestamp 	= timestamp.partition("|")[0]
+
+			message_id 	= messages[i]["href"]
+			message_id 	= message_id.partition("=")[2]
+			message_id	= message_id.partition("&")[0]
+
+			content 	= contents[i].text
+
+			post_number = (page - 1) * 50 + i
+			t.posts[post_number] 	=  Post.new(poster, timestamp, message_id, post_number+1, content)
+			i 			+= 1
+		end
+
 		return t
 	end
 
@@ -334,9 +404,9 @@ class TopicList
 end
 
 class Topic
-	attr_accessor :topic_id, :topic_title, :tc, :posts, :tags, :num_msgs, :last_post
+	attr_accessor :topic_id, :topic_title, :tc, :posts, :tags, :num_msgs, :last_post, :archived
 
-	def initialize(topic_id = 0, topic_title = "", tc = "", posts = [], tags = [], num_msgs = 0, last_post = 0)
+	def initialize(topic_id = 0, topic_title = "", tc = "", posts = [], tags = [], num_msgs = 0, last_post = 0, archived = true)
 		@topic_id = topic_id
 		@topic_title = topic_title
 		@tc = tc
@@ -344,11 +414,15 @@ class Topic
 		@tags = tags
 		@num_msgs = num_msgs
 		@last_post = last_post
+		@archived = archived
 	end
 
 	def to_s
 		output = "\n" + @topic_title + "\n\n"
-		output += posts
+		for post in posts
+			output += post.to_s
+		end
+		return output
 	end
 end
 
@@ -364,6 +438,7 @@ class Post
 	end
 
 	def to_s
-		"===========================\nFrom: " + @posted_by + " Posted: " + @timestamp + " #" + @post_number.to_s + "\n\n" + content + "\n===========================\n\n"
+		output = "===========================\nFrom: " + @posted_by + " Posted: " + @timestamp + " #" + @post_number.to_s + "\n\n" + content + "\n===========================\n\n"
+	 	return output
 	end
 end
