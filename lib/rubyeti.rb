@@ -49,6 +49,18 @@ class ETI
 	end
 end
 
+class ETIError < StandardError
+end
+
+class LoginError < ETIError
+end
+
+class TopicError < ETIError
+end
+
+class UserError < ETIError
+end
+
 class ETI
 
 	def initialize
@@ -69,7 +81,7 @@ class ETI
 			@connection = Curl::Easy.new("http://iphone.endoftheinter.net/")
 			post_field = "username=" + username + "&password=" + password
 		else 
-			return false, "invalid session"
+			raise LoginError, "Invalid session argument"
 		end
 
 		# allows cookies, so we can stay logged into eti
@@ -84,7 +96,7 @@ class ETI
 		html_source = @connection.body_str
 		if html_source.size==0 
 			@login = false
-			return false, "bad login"
+			raise LoginError, "Username / password combination invalid"
 		else 
 			@login = true
 			return true
@@ -95,7 +107,7 @@ class ETI
 	def post_topic(topic_name, topic_content)
 		# checks to see if the user is logged in
 		if(!@login)
-			return false, "not logged in"
+			raise LoginError, "Not logged in to ETI"
 		end
 		@connection.url = "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
 		post_field = "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=9adb9&submit=Post Message"
@@ -105,7 +117,7 @@ class ETI
 
 	def get_topic_list(tag_list)
 		if(!@login)
-			return false, "not logged in"
+			raise LoginError, "Not logged in to ETI"
 		end
 
 		append = ""
@@ -134,7 +146,7 @@ class ETI
 
 	def get_topic_by_id(id)
 		if(!@login) 
-			return false, "not logged in"
+			raise LoginError, "Not logged in to ETI"
 		end
 		# sets the curl object url to a page on eti i want to get
 		url = "http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s
@@ -155,7 +167,7 @@ class ETI
 			@connection.http_get
 			html_source = @connection.body_str
 			if(html_source.size==0)
-				return false, "invalid topic id"
+				raise TopicError, "Invalid topic id"
 			end
 		end
 
@@ -167,7 +179,7 @@ class ETI
 
 	def get_user_id(username) 
 		if(!@login)
-			return false, "not logged in"
+			raise LoginError, "Not logged in to ETI"
 		end
 		@connection.url = "http://endoftheinter.net/async-user-query.php?q=" + username
 		@connection.http_get
@@ -175,7 +187,7 @@ class ETI
 		user_search_source = user_search_source.partition(",\"")[2]
 		user_search_source = user_search_source.partition("\"")[0]
 		if(user_search_source.size==0)
-			return false, "user not found"
+			raise UserError, "User does not exist"
 		else
 			return user_search_source
 		end
@@ -184,19 +196,17 @@ class ETI
 
 	def is_user_online(username)
 		if(!@login)
-			return false, "not logged in"
+			raise LoginError, "Not logged in to ETI"
 		end
-		user_id, error = get_user_id(username)
-		if(!user_id)
-			return false, error
-		end
+		user_id = get_user_id(username)
+
 		@connection.url = "http://endoftheinter.net/profile.php?user=" + user_id.to_s
 		@connection.http_get
 		html_source = @connection.body_str
 		html_parse = Nokogiri::HTML(html_source)
 		online_now = html_parse.xpath('//td[contains(text(), "online now")]');
 		if online_now.size == 0
-			return false, "Offline"
+			return false
 		else
 			return true
 		end
@@ -204,7 +214,7 @@ class ETI
 
 	def is_user_online_by_id(userid)
 		if(!@login)
-			return false, "not logged in"
+			raise LoginError, "Not logged in to ETI"
 		end
 		@connection.url = "http://endoftheinter.net/profile.php?user=" + userid.to_s
 		@connection.http_get
@@ -220,18 +230,15 @@ class ETI
 
 	def create_private_message(username, subject, message)
 		if(!@login)
-			return false, "not logged in"
+			raise LoginError, "Not logged in to ETI"
 		end
-		userid, error = get_user_id(username)
-		if(!userid)
-			return false, error
-		end
+		userid = get_user_id(username)
 		create_private_message_by_id(userid, subject, message)
 	end
 
 	def create_private_message_by_id(userid, subject, message)
 		if(!@login)
-			return false, "not logged in"
+			raise LoginError, "Not logged in to ETI"
 		end
 		# this block is to get the "h" value from the post message page
 		# this seems to be unique to each user, not sure exactly how
