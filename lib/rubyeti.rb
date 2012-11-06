@@ -8,7 +8,6 @@
 
 # I assume no responsibility if you get banned for using this.
 
-#!/usr/bin/env ruby
 require 'rubygems'
 require 'curb'
 require 'nokogiri'
@@ -29,6 +28,7 @@ class RubyETI
 	end
 
 	# retrieves a topic list object, which is the first page of topics matching the tag combo entered
+	# currently &'s together all tags in the tag_list array
 	# DOES NOT WORK WITH ANONYMOUS TOPICS
 	# throws TopicError
 	def get_topic_list(tag_list)
@@ -86,12 +86,11 @@ end
 class RubyETI
 
 	def initialize
-		@login = false
 	end
 
 	def login(username, password, session="iphone")
-		username = username.partition("\n")[0]
-		password = password.partition("\n")[0]
+		username = username.chomp
+		password = password.chomp
 
 		# sets up the target connection url and post fields based on whether
 		# the user wants a desktop or mobile eti session
@@ -129,7 +128,10 @@ class RubyETI
 
 		append = ""
 		for tag in tag_list
-			append += tag
+			if tag != tag_list[0]
+				append += "&"
+			end
+			append += tag.to_s
 		end
 		url 			= "http://boards.endoftheinter.net/topics/" + append
 		@connection.url = url
@@ -229,9 +231,8 @@ class RubyETI
 	end
 
 	def create_private_message(username, subject, message)
-		if(!@login)
-			raise LoginError, "Not logged in to ETI"
-		end
+		check_login
+
 		userid = get_user_id(username)
 		create_private_message_by_id(userid, subject, message)
 	end
@@ -260,7 +261,7 @@ class RubyETI
 private
 	# tests to see if the session is active
 	def check_login
-		@connection.url = "http://archives.endoftheinter.net/showmessages.php?topic=1"
+		@connection.url = "http://endoftheinter.net/profile.php?user=1"
 		@connection.http_get
 		html_source = @connection.body_str
 		if html_source.size==0
