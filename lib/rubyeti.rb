@@ -1,12 +1,24 @@
-#!/usr/bin/env ruby
+# RubyETI
+# A Ruby interface to ETI
+# Designed by Christopher Lenart
+# Contact: clenart1@gmail.com
+# Open Source. 
+# https://github.com/clenart/rubyeti
+# Linking to my github in your documentation would be greatly appreciated :)
+
+# I assume no responsibility if you get banned for using this.
+
 require 'rubygems'
 require 'curb'
 require 'nokogiri'
 
-class ETI
+# Uses Ruby style exceptions
+# All exceptions specific to this program are subclasses of ETIError
+# All functions throw LoginError when the user is not logged into ETI
+class RubyETI
 	# logs a user into the site with their credentials
-	# with the session they specify
-	# should return true or false based on login success
+	# with the session ("desktop" or "iphone") they specify
+	# returns true on success
 	def login(username, password, session)
 	end
 
@@ -16,32 +28,42 @@ class ETI
 	end
 
 	# retrieves a topic list object, which is the first page of topics matching the tag combo entered
+	# currently &'s together all tags in the tag_list array
 	# DOES NOT WORK WITH ANONYMOUS TOPICS
+	# throws TopicError
 	def get_topic_list(tag_list)
 	end
 
 	# retrieves a topic by id
 	# returns a topic object on success, and should (doesn't yet) return failure indicator on fail
 	# DOES NOT WORK WITH ANONYMOUS TOPICS
+	# throws TopicError
 	def get_topic_by_id(id)
 	end
 
 	# returns the userid of the specified username
 	# returns false and error message if not found
+	# throws UserError
 	def get_user_id(username)
 	end
 
-	# return true if the user is online
+	# returns true if online
+	# false if not
+	# throws UserError
 	def is_user_online(username)
 	end
 
-	# returns true if the user with userid specified is online
+	# returns true if online
+	# false if not
+	# throws UserError
 	def is_user_online_by_id(userid)
 	end
 
 	# creates a new private message thread with the user specified by the userid user
 	# does NOT send your sig automatically
 	# both subject AND message must be >= 5 characters, or will fail
+	# does not work with *special* characters
+	# throws UserError
 	def create_private_message(username, subject, message)
 	end
 
@@ -49,16 +71,26 @@ class ETI
 	end
 end
 
-class ETI
+class ETIError < StandardError
+end
+
+class LoginError < ETIError
+end
+
+class TopicError < ETIError
+end
+
+class UserError < ETIError
+end
+
+class RubyETI
 
 	def initialize
-		@login = false
 	end
 
 	def login(username, password, session="iphone")
-
-		username = username.partition("\n")[0]
-		password = password.partition("\n")[0]
+		username = username.chomp
+		password = password.chomp
 
 		# sets up the target connection url and post fields based on whether
 		# the user wants a desktop or mobile eti session
@@ -69,7 +101,7 @@ class ETI
 			@connection = Curl::Easy.new("http://iphone.endoftheinter.net/")
 			post_field = "username=" + username + "&password=" + password
 		else 
-			return false, "invalid session"
+			raise LoginError, "Invalid session argument"
 		end
 
 		# allows cookies, so we can stay logged into eti
@@ -78,25 +110,13 @@ class ETI
 		# posts to the login page the username and password
 		@connection.http_post(post_field)
 		
-		# tests to see if the login succeeded
-		@connection.url = "http://archives.endoftheinter.net/showmessages.php?topic=1"
-		@connection.http_get
-		html_source = @connection.body_str
-		if html_source.size==0 
-			@login = false
-			return false, "bad login"
-		else 
-			@login = true
-			return true
-		end
+		check_login
 		
 	end
 
 	def post_topic(topic_name, topic_content)
-		# checks to see if the user is logged in
-		if(!@login)
-			return false, "not logged in"
-		end
+		check_login
+
 		@connection.url = "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
 		post_field = "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=9adb9&submit=Post Message"
 		@connection.http_post(post_field)
@@ -104,13 +124,14 @@ class ETI
 	end
 
 	def get_topic_list(tag_list)
-		if(!@login)
-			return false, "not logged in"
-		end
+		check_login
 
 		append = ""
 		for tag in tag_list
-			append += tag
+			if tag != tag_list[0]
+				append += "&"
+			end
+			append += tag.to_s
 		end
 		url 			= "http://boards.endoftheinter.net/topics/" + append
 		@connection.url = url
@@ -133,16 +154,13 @@ class ETI
 	end
 
 	def get_topic_by_id(id)
-		if(!@login) 
-			return false, "not logged in"
-		end
+		check_login
+
 		# sets the curl object url to a page on eti i want to get
 		url = "http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s
 		@connection.url = url
 		# gets the post
 		@connection.http_get
-
-		
 
 		html_source = @connection.body_str
 		
@@ -155,27 +173,25 @@ class ETI
 			@connection.http_get
 			html_source = @connection.body_str
 			if(html_source.size==0)
-				return false, "invalid topic id"
+				raise TopicError, "Invalid topic id"
 			end
 		end
 
 		t = parse_topic_html(html_source)
-		#puts t
 		return t
 
 	end
 
 	def get_user_id(username) 
-		if(!@login)
-			return false, "not logged in"
-		end
+		check_login
+
 		@connection.url = "http://endoftheinter.net/async-user-query.php?q=" + username
 		@connection.http_get
 		user_search_source = @connection.body_str
 		user_search_source = user_search_source.partition(",\"")[2]
 		user_search_source = user_search_source.partition("\"")[0]
 		if(user_search_source.size==0)
-			return false, "user not found"
+			raise UserError, "User does not exist"
 		else
 			return user_search_source
 		end
@@ -183,29 +199,25 @@ class ETI
 	end
 
 	def is_user_online(username)
-		if(!@login)
-			return false, "not logged in"
-		end
-		user_id, error = get_user_id(username)
-		if(!user_id)
-			return false, error
-		end
+		check_login
+
+		user_id = get_user_id(username)
+
 		@connection.url = "http://endoftheinter.net/profile.php?user=" + user_id.to_s
 		@connection.http_get
 		html_source = @connection.body_str
 		html_parse = Nokogiri::HTML(html_source)
 		online_now = html_parse.xpath('//td[contains(text(), "online now")]');
 		if online_now.size == 0
-			return false, "Offline"
+			return false
 		else
 			return true
 		end
 	end
 
 	def is_user_online_by_id(userid)
-		if(!@login)
-			return false, "not logged in"
-		end
+		check_login
+
 		@connection.url = "http://endoftheinter.net/profile.php?user=" + userid.to_s
 		@connection.http_get
 		html_source = @connection.body_str
@@ -219,20 +231,15 @@ class ETI
 	end
 
 	def create_private_message(username, subject, message)
-		if(!@login)
-			return false, "not logged in"
-		end
-		userid, error = get_user_id(username)
-		if(!userid)
-			return false, error
-		end
+		check_login
+
+		userid = get_user_id(username)
 		create_private_message_by_id(userid, subject, message)
 	end
 
 	def create_private_message_by_id(userid, subject, message)
-		if(!@login)
-			return false, "not logged in"
-		end
+		check_login
+
 		# this block is to get the "h" value from the post message page
 		# this seems to be unique to each user, not sure exactly how
 		# so for now im just loading up the new PM thread page and grabbing it
@@ -252,6 +259,18 @@ class ETI
 	end
 
 private
+	# tests to see if the session is active
+	def check_login
+		@connection.url = "http://endoftheinter.net/profile.php?user=1"
+		@connection.http_get
+		html_source = @connection.body_str
+		if html_source.size==0
+			raise LoginError, "Not logged in to ETI"
+		else 
+			return true
+		end
+	end
+
 	def parse_topic_html(html_source)
 		# creates a new topic to store the data in
 		t = Topic.new
@@ -267,6 +286,14 @@ private
 
 		# gets the topic title
 		t.topic_title 		= html_doc.xpath('//h1').text
+
+		# sets the archived flag
+		h2 = html_doc.xpath('//h2')
+		if(h2.size > 1)
+			t.archived = true
+		else
+			t.archived = false
+		end
 
 		# gets a list of the posters
 		posters 			= html_doc.xpath('//div[@class = "message-container"]/div[@class = "message-top"]/a[contains(@href, "profile.php")]')
@@ -304,6 +331,71 @@ private
 			t.posts[i] 	=  Post.new(poster, timestamp, message_id, i+1, content)
 			i 			+= 1
 		end
+
+		# retrieve a list of links to the next pages of the topic
+		next_page_links = html_doc.xpath('//div[@id = "u0_2"]/span')
+		number_of_pages = next_page_links[0].text.to_i
+		# if no links exist, return
+		if number_of_pages == 1
+			return t
+		else
+			for i in 0..number_of_pages
+				t = parse_topic_page(t,i)
+			end
+		end
+
+		return t
+	end
+
+	def parse_topic_page(t, page)
+		if t.archived
+			suburl = "archives"
+		else
+			suburl = "boards"
+		end
+		url = "http://" + suburl + ".endoftheinter.net/showmessages.php?topic=" + t.topic_id.to_s + "&page=" + page.to_s
+		@connection.url = url
+		# gets the post
+		@connection.http_get
+
+		html_source = @connection.body_str
+
+		html_doc = Nokogiri::HTML(html_source)
+
+		# gets a list of the posters
+		posters 			= html_doc.xpath('//div[@class = "message-container"]/div[@class = "message-top"]/a[contains(@href, "profile.php")]')
+		
+		# gets a list of the timestamps. these are still embedded in other text, the for loop
+		# takes care of extracting them
+		timestamps 			= html_doc.xpath('//div[@class = "message-container"]')
+
+		# gets a list of the link nodes with message_id
+		# its embedded in the href, the for loop extracts it
+		messages 			= html_doc.xpath('//div[@class = "message-container"]/div[@class="message-top"]/a[contains(@href, "message.php")]')
+
+		# gets the content of the posts
+		contents 			= html_doc.xpath('//td[@class = "message"]')
+
+		# gets the first page of posts
+		i = 0
+		for p in posters
+			poster 		= p.text
+
+			timestamp 	= timestamps[i].text
+			timestamp 	= timestamp.partition("Posted:")[2]
+			timestamp 	= timestamp.partition("|")[0]
+
+			message_id 	= messages[i]["href"]
+			message_id 	= message_id.partition("=")[2]
+			message_id	= message_id.partition("&")[0]
+
+			content 	= contents[i].text
+
+			post_number = (page - 1) * 50 + i
+			t.posts[post_number] 	=  Post.new(poster, timestamp, message_id, post_number+1, content)
+			i 			+= 1
+		end
+
 		return t
 	end
 
@@ -327,9 +419,9 @@ class TopicList
 end
 
 class Topic
-	attr_accessor :topic_id, :topic_title, :tc, :posts, :tags, :num_msgs, :last_post
+	attr_accessor :topic_id, :topic_title, :tc, :posts, :tags, :num_msgs, :last_post, :archived
 
-	def initialize(topic_id = 0, topic_title = "", tc = "", posts = [], tags = [], num_msgs = 0, last_post = 0)
+	def initialize(topic_id = 0, topic_title = "", tc = "", posts = [], tags = [], num_msgs = 0, last_post = 0, archived = true)
 		@topic_id = topic_id
 		@topic_title = topic_title
 		@tc = tc
@@ -337,11 +429,15 @@ class Topic
 		@tags = tags
 		@num_msgs = num_msgs
 		@last_post = last_post
+		@archived = archived
 	end
 
 	def to_s
 		output = "\n" + @topic_title + "\n\n"
-		output += posts
+		for post in posts
+			output += post.to_s
+		end
+		return output
 	end
 end
 
@@ -357,6 +453,7 @@ class Post
 	end
 
 	def to_s
-		"===========================\nFrom: " + @posted_by.to_s + " Posted: " + @timestamp.to_s + " #" + @post_number.to_s + "\n\n" + content.to_s + "\n===========================\n\n"
+		output = "===========================\nFrom: " + @posted_by.to_s + " Posted: " + @timestamp.to_s + " #" + @post_number.to_s + "\n\n" + content.to_s + "\n===========================\n\n"
+	 	return output
 	end
 end

@@ -1,7 +1,7 @@
-rubyeti
+RubyETI
 =======
 
-Ruby API for ETI
+Ruby interface to ETI
 
 Usage
 =====
