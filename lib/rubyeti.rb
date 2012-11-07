@@ -11,6 +11,7 @@
 require 'rubygems'
 require 'curb'
 require 'typhoeus'
+require 'rubyeti_connector'
 require 'nokogiri'
 
 # Uses Ruby style exceptions
@@ -84,61 +85,28 @@ end
 class UserError < ETIError
 end
 
+class TyphoeusError < ETIError
+end
+
 class RubyETI
 
 	def initialize
-		@hydra = Typhoeus::Hydra.new
+		@connection = RubyETI_connector.new
 	end
 
 	def login(username, password, session="iphone")
 		username = username.chomp
 		password = password.chomp
 
-		if session == "desktop"
-			request = Typhoeus::Request.new("https://endoftheinter.net/index.php",
-							:method => :post,
-							:body 	=> "b=" + username + "&p=" + password)
-		elsif session == "iphone"
-			request = Typhoeus::Request.new("http://iphone.endoftheinter.net/",
-							:method => :post,
-							:body 	=> "username=" + username + "&password=" + password)
-		else
-			raise LoginError, "Invalid session argument"
-		end
-		@hydra.queue(request)
-		@hydra.run
+		@connection.connect username, password, session
 
-		response = request.response
-		@cookie = ""
-		nextEntryIsCookie = false
-		for header in response.headers
-			for entry in header
-				for piece in entry
-					if nextEntryIsCookie
-							cookie_value = piece.to_s.partition(';')[0]
-							@cookie += cookie_value + "; "
-					end
-				end
-				nextEntryIsCookie = false
-				if entry == "Set-Cookie"
-					nextEntryIsCookie = true
-				end
-			end
-		end
-		check_login
+		@connection.test_connection
 	end
 
 	def post_topic(topic_name, topic_content)
-		check_login
+		@connection.test_connection
 
-		#@connection.url = "http://endoftheinter.net/postmsg.php?puser=" + userid.to_s
-		#@connection.http_get
-		request = Typhoeus::Request.new("http://boards.endoftheinter.net/postmsg.php?tag=LUE",
-										:method => :get,
-										:headers => {'Cookie' => @cookie})
-		@hydra.queue(request)
-		@hydra.run
-		html_source 	= request.response.body
+		html_source 	= @connection.get_html "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
 		html_doc 		= Nokogiri::HTML(html_source)
 		hash_field 		= html_doc.xpath('//input[@name = "h"]')
 		hash 			= hash_field[0]["value"]
@@ -157,7 +125,7 @@ class RubyETI
 	end
 
 	def get_topic_list(tag_list)
-		check_login
+		@connection.test_connection
 
 		append = ""
 		for tag in tag_list
@@ -166,19 +134,10 @@ class RubyETI
 			end
 			append += tag.to_s
 		end
-		url 			= "http://boards.endoftheinter.net/topics/" + append
+		url 		= "http://boards.endoftheinter.net/topics/" + append
 
-		request = Typhoeus::Request.new("http://boards.endoftheinter.net/topics/" + append,
-										:method => :get,
-										:headers => {'Cookie' => @cookie})
-		@hydra.queue(request)
-		@hydra.run
+		html_source = @connection.get_html url
 
-		if request.response.code != 200
-			raise TopicError, "Error retrieving topic list, HTTP error code " + request.response.code.to_s
-		end
-
-		html_source = request.response.body
 		html_doc 	= Nokogiri::HTML(html_source)
 		topic_ids	= html_doc.xpath('//td[@class = "oh"]/div[@class = "fl"]/a')
 
@@ -195,18 +154,15 @@ class RubyETI
 	end
 
 	def get_topic_by_id(id)
-		check_login
+		@connection.test_connection
 
 		# sets the curl object url to a page on eti i want to get
-		request = Typhoeus::Request.new("http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s,
-										:method => :get,
-										:headers => {'Cookie' => @cookie})
-		@hydra.queue(request)
-		@hydra.run
+		
 
 		# checks to see if the topic is getting a redirect,
 		# redirects from invalid archive topics simply give a blank
 		# html_source
+=begin
 		if(request.response.code!=200) 
 			request = Typhoeus::Request.new("http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s,
 										:method => :get,
@@ -217,14 +173,15 @@ class RubyETI
 				raise TopicError, "Invalid topic id"
 			end
 		end
-		html_source = request.response.body
+=end
+		html_source = @connection.get_html "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
 		t = parse_topic_html(html_source)
 		return t
 
 	end
 
 	def get_user_id(username) 
-		check_login
+		@connection.test_connection
 
 		@connection.url = "http://endoftheinter.net/async-user-query.php?q=" + username
 		@connection.http_get
@@ -240,7 +197,7 @@ class RubyETI
 	end
 
 	def is_user_online(username)
-		check_login
+		@connection.test_connection
 
 		user_id = get_user_id(username)
 
@@ -257,7 +214,7 @@ class RubyETI
 	end
 
 	def is_user_online_by_id(userid)
-		check_login
+		@connection.test_connection
 
 		@connection.url = "http://endoftheinter.net/profile.php?user=" + userid.to_s
 		@connection.http_get
@@ -272,14 +229,14 @@ class RubyETI
 	end
 
 	def create_private_message(username, subject, message)
-		check_login
+		@connection.test_connection
 
 		userid = get_user_id(username)
 		create_private_message_by_id(userid, subject, message)
 	end
 
 	def create_private_message_by_id(userid, subject, message)
-		check_login
+		@connection.test_connection
 
 		# this block is to get the "h" value from the post message page
 		# this seems to be unique to each user, not sure exactly how
@@ -300,20 +257,6 @@ class RubyETI
 	end
 
 private
-	# tests to see if the session is active
-	def check_login
-		request2 = Typhoeus::Request.new("http://archives.endoftheinter.net/showmessages.php?topic=1",
-						:method => :get,
-						:headers => {'Cookie' => @cookie})
-		@hydra.queue(request2)
-		@hydra.run
-		code = request2.response.code
-		if code != 200
-			raise LoginError, "Not logged in to ETI"
-		else 
-			return true
-		end
-	end
 
 	def parse_topic_html(html_source)
 		# creates a new topic to store the data in
@@ -321,6 +264,10 @@ private
 
 		# creates a nokogiri object for parsing the topic
 		html_doc 			= Nokogiri::HTML(html_source)
+
+		if html_doc.xpath('//div/em')[0].text == "Invalid topic."
+			raise TopicError, 'Invalid topic'
+		end
 
 		# gets the topic id
 		suggest_tag_link 	= html_doc.xpath('//a[contains(@href, "edittags.php")]')
@@ -383,7 +330,7 @@ private
 		if number_of_pages == 1
 			return t
 		else
-			for i in 0..number_of_pages
+			for i in 2..number_of_pages
 				t = parse_topic_page(t,i)
 			end
 		end
@@ -398,13 +345,13 @@ private
 			suburl = "boards"
 		end
 		url = "http://" + suburl + ".endoftheinter.net/showmessages.php?topic=" + t.topic_id.to_s + "&page=" + page.to_s
-		request = Typhoeus::Request.new(url,
-										:method => :get,
-										:headers => {'Cookie' => @cookie})
-		@hydra.queue(request)
-		@hydra.run
+		
 
-		html_source = request.response.body
+		#if request.response.code != 200
+		#	raise TopicError, "Could not get page " + (page+1).to_s + " of topic " + t.topic_id.to_s + ", HTTP code " + request.response.code.to_s
+		#end
+
+		html_source = @connection.get_html url
 
 		html_doc = Nokogiri::HTML(html_source)
 
