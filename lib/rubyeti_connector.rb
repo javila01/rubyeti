@@ -51,6 +51,22 @@ class RubyETI_connector
 		request.response.body
 	end
 
+	def post_html url, body
+
+		request = Typhoeus::Request.new(url,
+										:method => :post,
+										:body 	=> body,
+										:headers => {'Cookie' => @cookie})
+		@hydra.queue(request)
+		@hydra.run
+		if request.response.code == 302
+			true
+		else
+			raise TopicError, "Could not create new topic, HTTP error code " + request.response.code.to_s
+		end
+
+	end
+
 	def test_connection
 		request = Typhoeus::Request.new("http://archives.endoftheinter.net/showmessages.php?topic=1",
 						:method => :get,

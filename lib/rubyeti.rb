@@ -111,17 +111,8 @@ class RubyETI
 		hash_field 		= html_doc.xpath('//input[@name = "h"]')
 		hash 			= hash_field[0]["value"]
 
-		request = Typhoeus::Request.new("http://boards.endoftheinter.net/postmsg.php",
-										:method => :post,
-										:body 	=> "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=" + hash + "&submit=Post Message",
-										:headers => {'Cookie' => @cookie})
-		@hydra.queue(request)
-		@hydra.run
-		if request.response.code == 302
-			true
-		else
-			raise TopicError, "Could not create new topic, HTTP error code " + request.response.code.to_s
-		end
+		@connection.post_html "http://boards.endoftheinter.net/postmsg.php", "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=" + hash + "&submit=Post Message"
+
 	end
 
 	def get_topic_list(tag_list)
@@ -155,37 +146,15 @@ class RubyETI
 
 	def get_topic_by_id(id)
 		@connection.test_connection
-
-		# sets the curl object url to a page on eti i want to get
-		
-
-		# checks to see if the topic is getting a redirect,
-		# redirects from invalid archive topics simply give a blank
-		# html_source
-=begin
-		if(request.response.code!=200) 
-			request = Typhoeus::Request.new("http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s,
-										:method => :get,
-										:headers => {'Cookie' => @cookie})
-			@hydra.queue(request)
-			@hydra.run
-			if(request.response.code!=200)
-				raise TopicError, "Invalid topic id"
-			end
-		end
-=end
 		html_source = @connection.get_html "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
 		t = parse_topic_html(html_source)
 		return t
-
 	end
 
 	def get_user_id(username) 
 		@connection.test_connection
 
-		@connection.url = "http://endoftheinter.net/async-user-query.php?q=" + username
-		@connection.http_get
-		user_search_source = @connection.body_str
+		user_search_source = @connection.get_html "http://endoftheinter.net/async-user-query.php?q=" + username
 		user_search_source = user_search_source.partition(",\"")[2]
 		user_search_source = user_search_source.partition("\"")[0]
 		if(user_search_source.size==0)
