@@ -40,6 +40,7 @@ class RubyETI_connector
 	end
 
 	def get_html url
+		test_connection
 		request = Typhoeus::Request.new(url,
 										:method => :get,
 										:headers => {'Cookie' => @cookie})
@@ -52,7 +53,7 @@ class RubyETI_connector
 	end
 
 	def post_html url, body
-
+		test_connection
 		request = Typhoeus::Request.new(url,
 										:method => :post,
 										:body 	=> body,
@@ -65,6 +66,18 @@ class RubyETI_connector
 			raise TopicError, "Could not create new topic, HTTP error code " + request.response.code.to_s
 		end
 
+	end
+
+	def queue url
+		request = Typhoeus::Request.new(url,
+										:method => :get,
+										:headers => {'Cookie' => @cookie})
+		@hydra.queue(request)
+		request
+	end
+
+	def run
+		@hydra.run
 	end
 
 	def test_connection

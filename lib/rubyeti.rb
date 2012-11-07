@@ -104,20 +104,15 @@ class RubyETI
 	end
 
 	def post_topic(topic_name, topic_content)
-		@connection.test_connection
-
 		html_source 	= @connection.get_html "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
 		html_doc 		= Nokogiri::HTML(html_source)
 		hash_field 		= html_doc.xpath('//input[@name = "h"]')
 		hash 			= hash_field[0]["value"]
 
 		@connection.post_html "http://boards.endoftheinter.net/postmsg.php", "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=" + hash + "&submit=Post Message"
-
 	end
 
 	def get_topic_list(tag_list)
-		@connection.test_connection
-
 		append = ""
 		for tag in tag_list
 			if tag != tag_list[0]
@@ -145,15 +140,12 @@ class RubyETI
 	end
 
 	def get_topic_by_id(id)
-		@connection.test_connection
 		html_source = @connection.get_html "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
 		t = parse_topic_html(html_source)
 		return t
 	end
 
 	def get_user_id(username) 
-		@connection.test_connection
-
 		user_search_source = @connection.get_html "http://endoftheinter.net/async-user-query.php?q=" + username
 		user_search_source = user_search_source.partition(",\"")[2]
 		user_search_source = user_search_source.partition("\"")[0]
@@ -166,13 +158,9 @@ class RubyETI
 	end
 
 	def is_user_online(username)
-		@connection.test_connection
+		user_id = get_user_id username
 
-		user_id = get_user_id(username)
-
-		@connection.url = "http://endoftheinter.net/profile.php?user=" + user_id.to_s
-		@connection.http_get
-		html_source = @connection.body_str
+		html_source = @connection.get_html "http://endoftheinter.net/profile.php?user=" + user_id.to_s
 		html_parse = Nokogiri::HTML(html_source)
 		online_now = html_parse.xpath('//td[contains(text(), "online now")]');
 		if online_now.size == 0
@@ -183,11 +171,7 @@ class RubyETI
 	end
 
 	def is_user_online_by_id(userid)
-		@connection.test_connection
-
-		@connection.url = "http://endoftheinter.net/profile.php?user=" + userid.to_s
-		@connection.http_get
-		html_source = @connection.body_str
+		html_source = @connection.get_html "http://endoftheinter.net/profile.php?user=" + userid.to_s
 		html_parse = Nokogiri::HTML(html_source)
 		online_now = html_parse.xpath('//td[contains(text(), "online now")]');
 		if online_now.size == 0
@@ -198,22 +182,18 @@ class RubyETI
 	end
 
 	def create_private_message(username, subject, message)
-		@connection.test_connection
-
 		userid = get_user_id(username)
 		create_private_message_by_id(userid, subject, message)
 	end
 
 	def create_private_message_by_id(userid, subject, message)
-		@connection.test_connection
+		
 
 		# this block is to get the "h" value from the post message page
 		# this seems to be unique to each user, not sure exactly how
 		# so for now im just loading up the new PM thread page and grabbing it
 		# from the html source
-		@connection.url = "http://endoftheinter.net/postmsg.php?puser=" + userid.to_s
-		@connection.http_get
-		html_source 	= @connection.body_str
+		html_source 	= @connection.get_html "http://endoftheinter.net/postmsg.php?puser=" + userid.to_s
 		html_doc 		= Nokogiri::HTML(html_source)
 		hash_field 		= html_doc.xpath('//input[@name = "h"]')
 		hash 			= hash_field[0]["value"]
@@ -222,7 +202,7 @@ class RubyETI
 		# DOES NOT send your sig automatically
 		@connection.url = "http://endoftheinter.net/postmsg.php"
 		post_field 		= "puser=" + userid.to_s + "&title=" + subject.to_s + "&message=" + message.to_s + "&h=" + hash.to_s + "&submit=Send Message"
-		@connection.http_post(post_field)
+		@connection.post_html post_field
 	end
 
 private
@@ -299,29 +279,27 @@ private
 		if number_of_pages == 1
 			return t
 		else
+
+			if t.archived
+				suburl = "archives"
+			else
+				suburl = "boards"
+			end
+			requests = []
 			for i in 2..number_of_pages
-				t = parse_topic_page(t,i)
+				requests << @connection.queue("http://" + suburl + ".endoftheinter.net/showmessages.php?topic=" + t.topic_id.to_s + "&page=" + i.to_s)
+			end
+			start = Time.now
+			@connection.run
+			puts Time.now - start
+			for i in 2..number_of_pages
+				t = parse_topic_page(t,i, requests[i-2].response.body)
 			end
 		end
-
 		return t
 	end
 
-	def parse_topic_page(t, page)
-		if t.archived
-			suburl = "archives"
-		else
-			suburl = "boards"
-		end
-		url = "http://" + suburl + ".endoftheinter.net/showmessages.php?topic=" + t.topic_id.to_s + "&page=" + page.to_s
-		
-
-		#if request.response.code != 200
-		#	raise TopicError, "Could not get page " + (page+1).to_s + " of topic " + t.topic_id.to_s + ", HTTP code " + request.response.code.to_s
-		#end
-
-		html_source = @connection.get_html url
-
+	def parse_topic_page(t, page, html_source)
 		html_doc = Nokogiri::HTML(html_source)
 
 		# gets a list of the posters
