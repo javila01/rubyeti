@@ -10,6 +10,8 @@
 
 require 'rubygems'
 require 'curb'
+require 'typhoeus'
+require 'rubyeti_connector'
 require 'nokogiri'
 
 # Uses Ruby style exceptions
@@ -83,49 +85,34 @@ end
 class UserError < ETIError
 end
 
+class TyphoeusError < ETIError
+end
+
 class RubyETI
 
 	def initialize
+		@connection = RubyETI_connector.new
 	end
 
 	def login(username, password, session="iphone")
 		username = username.chomp
 		password = password.chomp
 
-		# sets up the target connection url and post fields based on whether
-		# the user wants a desktop or mobile eti session
-		if session=="desktop"
-			@connection = Curl::Easy.new("https://endoftheinter.net/index.php")
-			post_field = "b=" + username + "&p=" + password
-		elsif session=="iphone"
-			@connection = Curl::Easy.new("http://iphone.endoftheinter.net/")
-			post_field = "username=" + username + "&password=" + password
-		else 
-			raise LoginError, "Invalid session argument"
-		end
+		@connection.connect username, password, session
 
-		# allows cookies, so we can stay logged into eti
-		@connection.enable_cookies = true
-
-		# posts to the login page the username and password
-		@connection.http_post(post_field)
-		
-		check_login
-		
+		@connection.test_connection
 	end
 
 	def post_topic(topic_name, topic_content)
-		check_login
+		html_source 	= @connection.get_html "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
+		html_doc 		= Nokogiri::HTML(html_source)
+		hash_field 		= html_doc.xpath('//input[@name = "h"]')
+		hash 			= hash_field[0]["value"]
 
-		@connection.url = "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
-		post_field = "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=9adb9&submit=Post Message"
-		@connection.http_post(post_field)
-		true
+		@connection.post_html "http://boards.endoftheinter.net/postmsg.php", "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=" + hash + "&submit=Post Message"
 	end
 
 	def get_topic_list(tag_list)
-		check_login
-
 		append = ""
 		for tag in tag_list
 			if tag != tag_list[0]
@@ -133,11 +120,10 @@ class RubyETI
 			end
 			append += tag.to_s
 		end
-		url 			= "http://boards.endoftheinter.net/topics/" + append
-		@connection.url = url
-		@connection.http_get
+		url 		= "http://boards.endoftheinter.net/topics/" + append
 
-		html_source = @connection.body_str
+		html_source = @connection.get_html url
+
 		html_doc 	= Nokogiri::HTML(html_source)
 		topic_ids	= html_doc.xpath('//td[@class = "oh"]/div[@class = "fl"]/a')
 
@@ -154,40 +140,13 @@ class RubyETI
 	end
 
 	def get_topic_by_id(id)
-		check_login
-
-		# sets the curl object url to a page on eti i want to get
-		url = "http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s
-		@connection.url = url
-		# gets the post
-		@connection.http_get
-
-		html_source = @connection.body_str
-		
-		# checks to see if the topic is getting a redirect,
-		# redirects from invalid archive topics simply give a blank
-		# html_source
-		if(html_source.size==0) 
-			url = "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
-			@connection.url = url
-			@connection.http_get
-			html_source = @connection.body_str
-			if(html_source.size==0)
-				raise TopicError, "Invalid topic id"
-			end
-		end
-
+		html_source = @connection.get_html "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
 		t = parse_topic_html(html_source)
 		return t
-
 	end
 
 	def get_user_id(username) 
-		check_login
-
-		@connection.url = "http://endoftheinter.net/async-user-query.php?q=" + username
-		@connection.http_get
-		user_search_source = @connection.body_str
+		user_search_source = @connection.get_html "http://endoftheinter.net/async-user-query.php?q=" + username
 		user_search_source = user_search_source.partition(",\"")[2]
 		user_search_source = user_search_source.partition("\"")[0]
 		if(user_search_source.size==0)
@@ -199,13 +158,9 @@ class RubyETI
 	end
 
 	def is_user_online(username)
-		check_login
+		user_id = get_user_id username
 
-		user_id = get_user_id(username)
-
-		@connection.url = "http://endoftheinter.net/profile.php?user=" + user_id.to_s
-		@connection.http_get
-		html_source = @connection.body_str
+		html_source = @connection.get_html "http://endoftheinter.net/profile.php?user=" + user_id.to_s
 		html_parse = Nokogiri::HTML(html_source)
 		online_now = html_parse.xpath('//td[contains(text(), "online now")]');
 		if online_now.size == 0
@@ -216,11 +171,7 @@ class RubyETI
 	end
 
 	def is_user_online_by_id(userid)
-		check_login
-
-		@connection.url = "http://endoftheinter.net/profile.php?user=" + userid.to_s
-		@connection.http_get
-		html_source = @connection.body_str
+		html_source = @connection.get_html "http://endoftheinter.net/profile.php?user=" + userid.to_s
 		html_parse = Nokogiri::HTML(html_source)
 		online_now = html_parse.xpath('//td[contains(text(), "online now")]');
 		if online_now.size == 0
@@ -231,22 +182,18 @@ class RubyETI
 	end
 
 	def create_private_message(username, subject, message)
-		check_login
-
 		userid = get_user_id(username)
 		create_private_message_by_id(userid, subject, message)
 	end
 
 	def create_private_message_by_id(userid, subject, message)
-		check_login
+		
 
 		# this block is to get the "h" value from the post message page
 		# this seems to be unique to each user, not sure exactly how
 		# so for now im just loading up the new PM thread page and grabbing it
 		# from the html source
-		@connection.url = "http://endoftheinter.net/postmsg.php?puser=" + userid.to_s
-		@connection.http_get
-		html_source 	= @connection.body_str
+		html_source 	= @connection.get_html "http://endoftheinter.net/postmsg.php?puser=" + userid.to_s
 		html_doc 		= Nokogiri::HTML(html_source)
 		hash_field 		= html_doc.xpath('//input[@name = "h"]')
 		hash 			= hash_field[0]["value"]
@@ -255,21 +202,10 @@ class RubyETI
 		# DOES NOT send your sig automatically
 		@connection.url = "http://endoftheinter.net/postmsg.php"
 		post_field 		= "puser=" + userid.to_s + "&title=" + subject.to_s + "&message=" + message.to_s + "&h=" + hash.to_s + "&submit=Send Message"
-		@connection.http_post(post_field)
+		@connection.post_html post_field
 	end
 
 private
-	# tests to see if the session is active
-	def check_login
-		@connection.url = "http://endoftheinter.net/profile.php?user=1"
-		@connection.http_get
-		html_source = @connection.body_str
-		if html_source.size==0
-			raise LoginError, "Not logged in to ETI"
-		else 
-			return true
-		end
-	end
 
 	def parse_topic_html(html_source)
 		# creates a new topic to store the data in
@@ -277,6 +213,10 @@ private
 
 		# creates a nokogiri object for parsing the topic
 		html_doc 			= Nokogiri::HTML(html_source)
+
+		if html_doc.xpath('//div/em')[0].text == "Invalid topic."
+			raise TopicError, 'Invalid topic'
+		end
 
 		# gets the topic id
 		suggest_tag_link 	= html_doc.xpath('//a[contains(@href, "edittags.php")]')
@@ -339,27 +279,27 @@ private
 		if number_of_pages == 1
 			return t
 		else
-			for i in 0..number_of_pages
-				t = parse_topic_page(t,i)
+
+			if t.archived
+				suburl = "archives"
+			else
+				suburl = "boards"
+			end
+			requests = []
+			for i in 2..number_of_pages
+				requests << @connection.queue("http://" + suburl + ".endoftheinter.net/showmessages.php?topic=" + t.topic_id.to_s + "&page=" + i.to_s)
+			end
+			start = Time.now
+			@connection.run
+			puts Time.now - start
+			for i in 2..number_of_pages
+				t = parse_topic_page(t,i, requests[i-2].response.body)
 			end
 		end
-
 		return t
 	end
 
-	def parse_topic_page(t, page)
-		if t.archived
-			suburl = "archives"
-		else
-			suburl = "boards"
-		end
-		url = "http://" + suburl + ".endoftheinter.net/showmessages.php?topic=" + t.topic_id.to_s + "&page=" + page.to_s
-		@connection.url = url
-		# gets the post
-		@connection.http_get
-
-		html_source = @connection.body_str
-
+	def parse_topic_page(t, page, html_source)
 		html_doc = Nokogiri::HTML(html_source)
 
 		# gets a list of the posters
