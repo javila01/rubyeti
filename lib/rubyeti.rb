@@ -10,6 +10,7 @@
 
 require 'rubygems'
 require 'curb'
+require 'typhoeus'
 require 'nokogiri'
 
 # Uses Ruby style exceptions
@@ -92,6 +93,39 @@ class RubyETI
 		username = username.chomp
 		password = password.chomp
 
+		if session == "desktop"
+			request = Typhoeus::Request.new("https://endoftheinter.net/index.php",
+							:method => :post,
+							:body 	=> "b=" + username + "&p=" + password)
+		elsif session == "iphone"
+			request = Typhoeus::Request.new("http://iphone.endoftheinter.net/",
+							:method => :post,
+							:body 	=> "username=" + username + "&password=" + password)
+		else
+			raise LoginError, "Invalid session argument"
+		end
+		@hydra = Typhoeus::Hydra.new
+		@hydra.queue(request)
+		@hydra.run
+
+		response = request.response
+		@cookie = ""
+		nextEntryIsCookie = false
+		for header in response.headers
+			for entry in header
+				for piece in entry
+					if nextEntryIsCookie
+							cookie_value = piece.to_s.partition(';')[0]
+							@cookie += cookie_value + "; "
+					end
+				end
+				nextEntryIsCookie = false
+				if entry == "Set-Cookie"
+					nextEntryIsCookie = true
+				end
+			end
+		end
+=begin
 		# sets up the target connection url and post fields based on whether
 		# the user wants a desktop or mobile eti session
 		if session=="desktop"
@@ -109,9 +143,8 @@ class RubyETI
 
 		# posts to the login page the username and password
 		@connection.http_post(post_field)
-		
+=end
 		check_login
-		
 	end
 
 	def post_topic(topic_name, topic_content)
@@ -261,10 +294,13 @@ class RubyETI
 private
 	# tests to see if the session is active
 	def check_login
-		@connection.url = "http://endoftheinter.net/profile.php?user=1"
-		@connection.http_get
-		html_source = @connection.body_str
-		if html_source.size==0
+		request2 = Typhoeus::Request.new("http://archives.endoftheinter.net/showmessages.php?topic=1",
+						:method => :get,
+						:headers => {'Cookie' => @cookie})
+		@hydra.queue(request2)
+		@hydra.run
+		code = request2.response.code
+		if code != 200
 			raise LoginError, "Not logged in to ETI"
 		else 
 			return true
