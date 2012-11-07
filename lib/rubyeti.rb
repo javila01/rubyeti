@@ -87,6 +87,7 @@ end
 class RubyETI
 
 	def initialize
+		@hydra = Typhoeus::Hydra.new
 	end
 
 	def login(username, password, session="iphone")
@@ -104,7 +105,6 @@ class RubyETI
 		else
 			raise LoginError, "Invalid session argument"
 		end
-		@hydra = Typhoeus::Hydra.new
 		@hydra.queue(request)
 		@hydra.run
 
@@ -125,35 +125,35 @@ class RubyETI
 				end
 			end
 		end
-=begin
-		# sets up the target connection url and post fields based on whether
-		# the user wants a desktop or mobile eti session
-		if session=="desktop"
-			@connection = Curl::Easy.new("https://endoftheinter.net/index.php")
-			post_field = "b=" + username + "&p=" + password
-		elsif session=="iphone"
-			@connection = Curl::Easy.new("http://iphone.endoftheinter.net/")
-			post_field = "username=" + username + "&password=" + password
-		else 
-			raise LoginError, "Invalid session argument"
-		end
-
-		# allows cookies, so we can stay logged into eti
-		@connection.enable_cookies = true
-
-		# posts to the login page the username and password
-		@connection.http_post(post_field)
-=end
 		check_login
 	end
 
 	def post_topic(topic_name, topic_content)
 		check_login
 
-		@connection.url = "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
-		post_field = "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=9adb9&submit=Post Message"
-		@connection.http_post(post_field)
-		true
+		#@connection.url = "http://endoftheinter.net/postmsg.php?puser=" + userid.to_s
+		#@connection.http_get
+		request = Typhoeus::Request.new("http://boards.endoftheinter.net/postmsg.php?tag=LUE",
+										:method => :get,
+										:headers => {'Cookie' => @cookie})
+		@hydra.queue(request)
+		@hydra.run
+		html_source 	= request.response.body
+		html_doc 		= Nokogiri::HTML(html_source)
+		hash_field 		= html_doc.xpath('//input[@name = "h"]')
+		hash 			= hash_field[0]["value"]
+
+		request = Typhoeus::Request.new("http://boards.endoftheinter.net/postmsg.php",
+										:method => :post,
+										:body 	=> "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=" + hash + "&submit=Post Message",
+										:headers => {'Cookie' => @cookie})
+		@hydra.queue(request)
+		@hydra.run
+		if request.response.code == 302
+			true
+		else
+			raise TopicError, "Could not create new topic, HTTP error code " + request.response.code.to_s
+		end
 	end
 
 	def get_topic_list(tag_list)
