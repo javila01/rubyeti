@@ -167,10 +167,18 @@ class RubyETI
 			append += tag.to_s
 		end
 		url 			= "http://boards.endoftheinter.net/topics/" + append
-		@connection.url = url
-		@connection.http_get
 
-		html_source = @connection.body_str
+		request = Typhoeus::Request.new("http://boards.endoftheinter.net/topics/" + append,
+										:method => :get,
+										:headers => {'Cookie' => @cookie})
+		@hydra.queue(request)
+		@hydra.run
+
+		if request.response.code != 200
+			raise TopicError, "Error retrieving topic list, HTTP error code " + request.response.code.to_s
+		end
+
+		html_source = request.response.body
 		html_doc 	= Nokogiri::HTML(html_source)
 		topic_ids	= html_doc.xpath('//td[@class = "oh"]/div[@class = "fl"]/a')
 
@@ -190,26 +198,26 @@ class RubyETI
 		check_login
 
 		# sets the curl object url to a page on eti i want to get
-		url = "http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s
-		@connection.url = url
-		# gets the post
-		@connection.http_get
+		request = Typhoeus::Request.new("http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s,
+										:method => :get,
+										:headers => {'Cookie' => @cookie})
+		@hydra.queue(request)
+		@hydra.run
 
-		html_source = @connection.body_str
-		
 		# checks to see if the topic is getting a redirect,
 		# redirects from invalid archive topics simply give a blank
 		# html_source
-		if(html_source.size==0) 
-			url = "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
-			@connection.url = url
-			@connection.http_get
-			html_source = @connection.body_str
-			if(html_source.size==0)
+		if(request.response.code!=200) 
+			request = Typhoeus::Request.new("http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s,
+										:method => :get,
+										:headers => {'Cookie' => @cookie})
+			@hydra.queue(request)
+			@hydra.run
+			if(request.response.code!=200)
 				raise TopicError, "Invalid topic id"
 			end
 		end
-
+		html_source = request.response.body
 		t = parse_topic_html(html_source)
 		return t
 
@@ -390,11 +398,13 @@ private
 			suburl = "boards"
 		end
 		url = "http://" + suburl + ".endoftheinter.net/showmessages.php?topic=" + t.topic_id.to_s + "&page=" + page.to_s
-		@connection.url = url
-		# gets the post
-		@connection.http_get
+		request = Typhoeus::Request.new(url,
+										:method => :get,
+										:headers => {'Cookie' => @cookie})
+		@hydra.queue(request)
+		@hydra.run
 
-		html_source = @connection.body_str
+		html_source = request.response.body
 
 		html_doc = Nokogiri::HTML(html_source)
 
