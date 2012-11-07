@@ -97,18 +97,22 @@ class RubyETI
     def login(username, password, session="iphone")
         username = username.chomp
         password = password.chomp
-
+        # connects the eti connector using the login info
         @connection.connect username, password, session
-
+        # tests the connection
         @connection.test_connection
     end
 
     def post_topic(topic_name, topic_content)
+        # gets the html from the post msg page, to get the hash value
         html_source     = @connection.get_html "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
+        # creates nokogiri object to parse
         html_doc        = Nokogiri::HTML(html_source)
+        # finds the hash tag
         hash_field      = html_doc.xpath('//input[@name = "h"]')
+        # extracts the hash from the html tag
         hash            = hash_field[0]["value"]
-
+        # posts the topic using POST
         @connection.post_html "http://boards.endoftheinter.net/postmsg.php", "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=" + hash + "&submit=Post Message"
     end
 
@@ -125,10 +129,12 @@ class RubyETI
         html_source = @connection.get_html url
 
         html_doc    = Nokogiri::HTML(html_source)
+        # gets the <a> html tags that contain links to the topics on the topic list
         topic_ids   = html_doc.xpath('//td[@class = "oh"]/div[@class = "fl"]/a')
 
         topic_list_return = TopicList.new
 
+        # extracts the topic id from the <a> html tags, and retrieves the topic from eti
         for topic in topic_ids
             topic_id = topic["href"]
             topic_id = topic_id.partition("?topic=")[2]
@@ -279,7 +285,6 @@ private
         if number_of_pages == 1
             return t
         else
-
             if t.archived
                 suburl = "archives"
             else
