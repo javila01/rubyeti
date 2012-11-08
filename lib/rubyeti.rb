@@ -9,7 +9,6 @@
 # I assume no responsibility if you get banned for using this.
 
 require 'rubygems'
-require 'curb'
 require 'typhoeus'
 require 'rubyeti_connector'
 require 'nokogiri'
@@ -50,6 +49,8 @@ class RubyETI
     end
 
     # uploads an image to eti and returns the <img> code as a string
+    # still contains escape characters and surrounding quotes
+    # should eventually be parsed out
     def upload_image path_to_image
     end
 
@@ -95,7 +96,7 @@ class RubyETI
         @connection = RubyETI_connector.new
     end
 
-    def login(username, password, session="iphone")
+    def login username, password, session="iphone"
         username = username.chomp
         password = password.chomp
         # connects the eti connector using the login info
@@ -104,7 +105,7 @@ class RubyETI
         @connection.test_connection
     end
 
-    def post_topic(topic_name, topic_content)
+    def post_topic topic_name, topic_content
         # gets the html from the post msg page, to get the hash value
         html_source     = @connection.get_html "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
         # creates nokogiri object to parse
@@ -117,7 +118,7 @@ class RubyETI
         @connection.post_html "http://boards.endoftheinter.net/postmsg.php", "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=" + hash + "&submit=Post Message"
     end
 
-    def get_topic_list(tag_list)
+    def get_topic_list tag_list
         append = ""
         for tag in tag_list
             if tag != tag_list[0]
@@ -180,13 +181,13 @@ class RubyETI
         return topic_list_return
     end
 
-    def get_topic_by_id(id)
+    def get_topic_by_id id
         html_source = @connection.get_html "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
         t = parse_topic_html(html_source)
         return t
     end
 
-    def get_user_id(username) 
+    def get_user_id username
         user_search_source = @connection.get_html "http://endoftheinter.net/async-user-query.php?q=" + username
         user_search_source = user_search_source.partition(",\"")[2]
         user_search_source = user_search_source.partition("\"")[0]
@@ -211,7 +212,7 @@ class RubyETI
         image_link[0]["value"]
     end
 
-    def is_user_online(username)
+    def is_user_online username
         user_id = get_user_id username
 
         html_source = @connection.get_html "http://endoftheinter.net/profile.php?user=" + user_id.to_s
@@ -224,7 +225,7 @@ class RubyETI
         end
     end
 
-    def is_user_online_by_id(userid)
+    def is_user_online_by_id userid
         html_source = @connection.get_html "http://endoftheinter.net/profile.php?user=" + userid.to_s
         html_parse = Nokogiri::HTML(html_source)
         online_now = html_parse.xpath('//td[contains(text(), "online now")]');
@@ -235,12 +236,12 @@ class RubyETI
         end
     end
 
-    def create_private_message(username, subject, message)
+    def create_private_message username, subject, message
         userid = get_user_id(username)
         create_private_message_by_id(userid, subject, message)
     end
 
-    def create_private_message_by_id(userid, subject, message)
+    def create_private_message_by_id userid, subject, message
         
 
         # this block is to get the "h" value from the post message page
