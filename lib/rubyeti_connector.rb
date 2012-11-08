@@ -1,6 +1,6 @@
 class RubyETI_connector
     def initialize
-        @hydra = Typhoeus::Hydra.new
+        @hydra = Typhoeus::Hydra.new(:max_concurrency => 10)
     end
 
     def connect username, password, session = "iphone"
@@ -61,11 +61,21 @@ class RubyETI_connector
         @hydra.queue(request)
         @hydra.run
         if request.response.code == 302
-            true
+            request.response
         else
-            raise TopicError, "Could not create new topic, HTTP error code " + request.response.code.to_s
+            raise TopicError, "Failed to POST. URL = " + url.to_s + "\nCode = " + request.response.code.to_s
         end
 
+    end
+
+    def upload_image image_path
+        request = Typhoeus::Request.new("http://u.endoftheinter.net/u.php",
+                                        :method => :post,
+                                        :body => {:name => "file", :file => File.open(image_path, "r")},
+                                        :headers => {'Cookie' => @cookie} )
+        @hydra.queue(request)
+        @hydra.run
+        request.response
     end
 
     def queue url
@@ -77,7 +87,9 @@ class RubyETI_connector
     end
 
     def run
+        start = Time.now
         @hydra.run
+        puts Time.now - start
     end
 
     def test_connection

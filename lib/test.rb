@@ -24,7 +24,7 @@ end
 # get_topic_list test
 begin
     start = Time.now
-    puts eti.get_topic_list(["LUE", "Programming"])
+    topic_list = eti.get_topic_list(["Change_Log"])
     puts Time.now - start
 rescue TopicError => e
     puts "get_topic_list test failed: "
@@ -33,6 +33,14 @@ else
     puts "get_topic_list test passed"
 end
 
+begin
+    puts eti.upload_image "/Users/clenart/Desktop/fourmore.jpg"
+rescue ETIError => e
+    puts "upload_image test failed: "
+    puts e.message
+else
+    puts "upload_image test passed"
+end
 
 # post_topic test
 begin
@@ -63,3 +71,4 @@ rescue ETIError => e
 else
     puts "get_topic_by_id passed"
 end
+

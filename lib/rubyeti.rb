@@ -33,7 +33,7 @@ class RubyETI
     # currently &'s together all tags in the tag_list array
     # DOES NOT WORK WITH ANONYMOUS TOPICS
     # throws TopicError
-    def get_topic_list(tag_list)
+    def get_topic_list tag_list
     end
 
     # retrieves a topic by id
@@ -47,6 +47,10 @@ class RubyETI
     # returns false and error message if not found
     # throws UserError
     def get_user_id(username)
+    end
+
+    # uploads an image to eti and returns the <img> code as a string
+    def upload_image path_to_image
     end
 
     # returns true if online
@@ -83,9 +87,6 @@ class TopicError < ETIError
 end
 
 class UserError < ETIError
-end
-
-class TyphoeusError < ETIError
 end
 
 class RubyETI
@@ -130,17 +131,51 @@ class RubyETI
 
         html_doc    = Nokogiri::HTML(html_source)
         # gets the <a> html tags that contain links to the topics on the topic list
-        topic_ids   = html_doc.xpath('//td[@class = "oh"]/div[@class = "fl"]/a')
-
+        topics      =  html_doc.xpath('//td[@class = "oh"]/div[@class = "fl"]//a')
+        #archived    =  html_doc.xpath('//td[@class = "oh"]/div[@class = "fl"]/span/a')
+        posts       =  html_doc.xpath('//table[@class = "grid"]/tr/td')
         topic_list_return = TopicList.new
 
-        # extracts the topic id from the <a> html tags, and retrieves the topic from eti
-        for topic in topic_ids
+        topic_ids = []
+        pages = []
+        i = 0
+        
+        for topic in topics
+            # extracts the topic id from the <a> html tags
             topic_id = topic["href"]
-            topic_id = topic_id.partition("?topic=")[2]
-            t = get_topic_by_id(topic_id)
-            topic_list_return.topics << t
+            topic_ids << topic_id
+            # extracts the number of pages from the table
+            puts posts[2+i*4].text.to_i
+            pages[i+1] = (posts[2+i*4].text.to_i / 50.0).ceil
+            i += 1
         end
+        i = 0
+        requests = []
+        for topic in topic_ids
+            for n in 1..pages[i+1]
+                request = @connection.queue "http:" + topic + "&page=" + n.to_s
+                requests << request
+            end
+            i += 1
+        end
+        @connection.run
+
+        i = 0
+        j = 0
+        topic_list_return = TopicList.new
+        while i <= requests.size-1
+            topic = Topic.new
+            page = pages[j+1]
+            for n in 1..page
+                topic = parse_topic_html requests[i].response.body, topic, n
+                i += 1
+            end
+            j += 1
+            topic_list_return.topics << topic
+        end
+
+        #t = get_topic_by_id(topic_id)
+        #topic_list_return.topics << t
 
         return topic_list_return
     end
@@ -160,7 +195,20 @@ class RubyETI
         else
             return user_search_source
         end
+    end
 
+    def upload_image path_to_image
+        response = @connection.upload_image path_to_image
+        if response.code != 200
+            raise ETIError, "Image uploading failed, HTTP code = " + response.code.to_s
+        end
+        html = response.body
+        html_doc = Nokogiri::HTML(html)
+        image_link = html_doc.xpath('//div[@class = "img"]/input')
+        if image_link[0] == nil
+            raise ETIError, "Image uploading failed, invalid file format"
+        end
+        image_link[0]["value"]
     end
 
     def is_user_online(username)
@@ -213,14 +261,14 @@ class RubyETI
 
 private
 
-    def parse_topic_html(html_source)
+    def parse_topic_html html_source, topic, page
         # creates a new topic to store the data in
-        t = Topic.new
+        t = topic
 
         # creates a nokogiri object for parsing the topic
         html_doc            = Nokogiri::HTML(html_source)
-
-        if html_doc.xpath('//div/em')[0].text == "Invalid topic."
+        em = html_doc.xpath('//div/em')
+        if em[0] != nil && em.text == "Invalid topic."
             raise TopicError, 'Invalid topic'
         end
 
@@ -241,12 +289,12 @@ private
             t.archived = false
         end
 
-        # gets a list of the posters
-        posters             = html_doc.xpath('//div[@class = "message-container"]/div[@class = "message-top"]/a[contains(@href, "profile.php")]')
-        
         # gets a list of the timestamps. these are still embedded in other text, the for loop
         # takes care of extracting them
         timestamps          = html_doc.xpath('//div[@class = "message-container"]')
+
+        # gets a list of the posters
+        posters             = html_doc.xpath('//div[@class = "message-container"]/div[@class = "message-top"]/a[contains(@href, "profile.php")]')
 
         # gets a list of the link nodes with message_id
         # its embedded in the href, the for loop extracts it
@@ -274,10 +322,11 @@ private
 
             content     = contents[i].text
 
-            t.posts[i]  =  Post.new(poster, timestamp, message_id, i+1, content)
+            post_number = (page - 1) * 50 + i
+            t.posts[post_number]    =  Post.new(poster, timestamp, message_id, post_number+1, content)
             i           += 1
         end
-
+=begin
         # retrieve a list of links to the next pages of the topic
         next_page_links = html_doc.xpath('//div[@id = "u0_2"]/span')
         number_of_pages = next_page_links[0].text.to_i
@@ -301,9 +350,10 @@ private
                 t = parse_topic_page(t,i, requests[i-2].response.body)
             end
         end
+=end
         return t
     end
-
+=begin
     def parse_topic_page(t, page, html_source)
         html_doc = Nokogiri::HTML(html_source)
 
@@ -343,7 +393,7 @@ private
 
         return t
     end
-
+=end
 end
 
 class TopicList
