@@ -114,64 +114,47 @@ class RubyETI
     end
 
     def get_topic_list tag_list
-        append = ""
-        for tag in tag_list
-            if tag != tag_list[0]
-                append += "&"
-            end
-            append += tag.to_s
-        end
-        url         = "http://boards.endoftheinter.net/topics/" + append
+        url         = "http://boards.endoftheinter.net/topics/" + tag_list
 
         html_source = @connection.get_html url
 
         html_doc    = Nokogiri::HTML(html_source)
         # gets the <a> html tags that contain links to the topics on the topic list
         topics      =  html_doc.xpath('//td[@class = "oh"]/div[@class = "fl"]//a')
-        #archived    =  html_doc.xpath('//td[@class = "oh"]/div[@class = "fl"]/span/a')
+        # gets the number of msgs
         posts       =  html_doc.xpath('//table[@class = "grid"]/tr/td')
+        # gets the tag divs
+        tags        =  html_doc.xpath('//td[@class = "oh"]/div[@class = "fr"]')
         topic_list_return = TopicList.new
 
-        topic_ids = []
-        pages = []
         i = 0
         
         for topic in topics
+            t = TopicListRow.new
+            # extracts the topic name from the <a> html tags
+            t.topic_name = topic.text
             # extracts the topic id from the <a> html tags
             topic_id = topic["href"]
-            topic_ids << topic_id
+            t.topic_id = topic_id.partition("=")[2]
+            # extracts the tags from the <div class="fr"> tags
+            tag_array = []
+            tag_names = tags[i].text
+
+            while tag_names != ""
+                tag_array << tag_names.partition(" ")[0]
+                tag_names = tag_names.partition(" ")[2]
+            end
+
+            t.tags = tag_array
+            # extracts the tc from the table
+            t.tc = posts[1+i*4].text.to_s
             # extracts the number of pages from the table
-            puts posts[2+i*4].text.to_i
-            pages[i+1] = (posts[2+i*4].text.to_i / 50.0).ceil
+            t.msgs = posts[2+i*4].text.to_i
+            # extracts the last post time from the table
+            t.last_post = posts[3+i*4].text.to_s
+            topic_list_return.topics << t
             i += 1
         end
-        i = 0
-        requests = []
-        for topic in topic_ids
-            for n in 1..pages[i+1]
-                request = @connection.queue "http:" + topic + "&page=" + n.to_s
-                requests << request
-            end
-            i += 1
-        end
-        @connection.run
-
-        i = 0
-        j = 0
-        topic_list_return = TopicList.new
-        while i <= requests.size-1
-            topic = Topic.new
-            page = pages[j+1]
-            for n in 1..page
-                topic = parse_topic_html requests[i].response.body, topic, n
-                i += 1
-            end
-            j += 1
-            topic_list_return.topics << topic
-        end
-
-        #t = get_topic_by_id(topic_id)
-        #topic_list_return.topics << t
 
         return topic_list_return
     end
