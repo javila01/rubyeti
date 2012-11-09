@@ -3,6 +3,13 @@ RubyETI
 
 Ruby interface to ETI
 
+Installation
+============
+
+```
+sudo gem install rubyeti
+```
+
 Usage
 =====
 
