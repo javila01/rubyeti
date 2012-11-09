@@ -43,7 +43,7 @@ class RubyETI_connector
                 end
             end
         end
-
+        true
     end
 
     def get_html url
