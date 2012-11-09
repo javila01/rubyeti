@@ -38,6 +38,10 @@ class Topic
 
     def to_s
         output = "\n" + @topic_title + "\n\n"
+        for tag in tags
+            output += "[" + tag + "] "
+        end
+        output += "\n\n"
         for post in posts
             output += post.to_s
         end

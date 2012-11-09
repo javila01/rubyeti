@@ -173,6 +173,13 @@ class RubyETI
         t = parse_topic_html(html_source, t, 1)
 
         html_doc = Nokogiri::HTML(html_source)
+
+        tags = html_doc.xpath('//h2/div/a')
+        tag_array = []
+        for tag in tags
+            tag_array << tag.text
+        end
+        t.tags = tag_array
         # retrieve a list of links to the next pages of the topic
         next_page_links = html_doc.xpath('//div[@id = "u0_2"]/span')
         number_of_pages = next_page_links[0].text.to_i
