@@ -67,11 +67,10 @@ class RubyETI_connector
                                         :headers => {'Cookie' => @cookie})
         @hydra.queue(request)
         @hydra.run
-        if request.response.code == 302
-            request.response
-        else
+        if request.response.code != 302
             raise TopicError, "Failed to POST. URL = " + url.to_s + "\nCode = " + request.response.code.to_s
         end
+        return request.response
 
     end
 

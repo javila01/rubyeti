@@ -1,3 +1,4 @@
+require 'rubygems'
 require 'rubyeti'
 
 eti = RubyETI.new
