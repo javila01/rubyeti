@@ -8,14 +8,6 @@
 
 # I assume no responsibility if you get banned for using this.
 
-require 'rubygems'
-require 'typhoeus'
-require 'rubyeti_connector'
-require 'nokogiri'
-require 'topic'
-require 'post'
-require 'topic_list'
-
 # Uses Ruby style exceptions
 # All exceptions specific to this program are subclasses of ETIError
 # All functions throw LoginError when the user is not logged into ETI
