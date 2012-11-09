@@ -12,6 +12,9 @@ require 'rubygems'
 require 'typhoeus'
 require 'rubyeti_connector'
 require 'nokogiri'
+require 'topic'
+require 'post'
+require 'topic_list'
 
 # Uses Ruby style exceptions
 # All exceptions specific to this program are subclasses of ETIError
@@ -395,61 +398,4 @@ private
         return t
     end
 =end
-end
-
-class TopicList
-    attr_accessor :topics
-
-    def initialize(topics = [])
-        @topics = topics
-    end
-
-    def to_s
-        output = "\n"
-        for topic in @topics
-            output += topic.topic_title + "\t\t| " + topic.tc + "\n"
-        end 
-        output
-    end
-
-end
-
-class Topic
-    attr_accessor :topic_id, :topic_title, :tc, :posts, :tags, :num_msgs, :last_post, :archived
-
-    def initialize(topic_id = 0, topic_title = "", tc = "", posts = [], tags = [], num_msgs = 0, last_post = 0, archived = true)
-        @topic_id = topic_id
-        @topic_title = topic_title
-        @tc = tc
-        @posts = posts
-        @tags = tags
-        @num_msgs = num_msgs
-        @last_post = last_post
-        @archived = archived
-    end
-
-    def to_s
-        output = "\n" + @topic_title + "\n\n"
-        for post in posts
-            output += post.to_s
-        end
-        return output
-    end
-end
-
-class Post
-    attr_accessor :posted_by, :timestamp, :message_id, :post_number, :content
-
-    def initialize(posted_by = "", timestamp = "", message_id = 1, post_number = 1, content = "")
-        @posted_by = posted_by
-        @timestamp = timestamp
-        @message_id = message_id
-        @post_number = post_number
-        @content = content
-    end
-
-    def to_s
-        output = "===========================\nFrom: " + @posted_by.to_s + " Posted: " + @timestamp.to_s + " #" + @post_number.to_s + "\n\n" + content.to_s + "\n===========================\n\n"
-        return output
-    end
 end

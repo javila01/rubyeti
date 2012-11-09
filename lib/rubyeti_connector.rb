@@ -1,6 +1,6 @@
 class RubyETI_connector
     def initialize
-        @hydra = Typhoeus::Hydra.new(:max_concurrency => 10)
+        @hydra = Typhoeus::Hydra.new(:max_concurrency => 20)
     end
 
     def connect username, password, session = "iphone"
@@ -20,6 +20,13 @@ class RubyETI_connector
         @hydra.run
 
         response = request.response
+	# checks for suspension
+	body = response.body
+	if body.partition("You are suspended.")[0] != ""
+		raise LoginError, "You are suspended."
+	end
+
+	# gets the cookie
         @cookie = ""
         nextEntryIsCookie = false
         for header in response.headers

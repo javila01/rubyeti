@@ -14,8 +14,8 @@ while !login
         password = gets
         system 'stty echo'
         eti.login(username, password)
-    rescue LoginError
-        puts "Invalid username / password combo, try again\n\n"
+    rescue LoginError => e
+        puts e.message + "\n\n"
     else
         login = true
     end
@@ -24,7 +24,8 @@ end
 # get_topic_list test
 begin
     start = Time.now
-    topic_list = eti.get_topic_list(["Change_Log"])
+   topic_list=eti.get_topic_list("Apple") 
+    #topic_list = eti.get_topic_list("LUE")
     puts Time.now - start
 rescue TopicError => e
     puts "get_topic_list test failed: "
@@ -32,7 +33,7 @@ rescue TopicError => e
 else
     puts "get_topic_list test passed"
 end
-
+=begin
 begin
     puts eti.upload_image "/Users/clenart/Desktop/fourmore.jpg"
 rescue ETIError => e
@@ -71,4 +72,4 @@ rescue ETIError => e
 else
     puts "get_topic_by_id passed"
 end
-
+=end
