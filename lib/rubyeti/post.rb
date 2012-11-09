@@ -1,8 +1,8 @@
 class Post
-    attr_accessor :posted_by, :timestamp, :message_id, :post_number, :content
+    attr_accessor :username, :userid, :timestamp, :message_id, :post_number, :content
 
-    def initialize(posted_by = "", timestamp = "", message_id = 1, post_number = 1, content = "")
-        @posted_by = posted_by
+    def initialize(username = "", timestamp = "", message_id = 1, post_number = 1, content = "")
+        @username = username 
         @timestamp = timestamp
         @message_id = message_id
         @post_number = post_number

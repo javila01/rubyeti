@@ -12,6 +12,26 @@ class Topic
         @archived = archived
     end
 
+    def filter username
+        temp_posts = []
+        for post in @posts
+            if post.username == username
+                temp_posts << post
+            end
+        end 
+        @posts = temp_posts
+    end
+
+    def filter userid
+        temp_posts = []
+        for post in @posts
+            if post.userid == userid
+                temp_posts << post
+            end
+        end
+        @posts = temp_posts
+    end
+
     def to_s
         output = "\n" + @topic_title + "\n\n"
         for post in posts
