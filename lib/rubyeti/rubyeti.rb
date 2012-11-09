@@ -177,8 +177,42 @@ class RubyETI
     end
 
     def get_topic_by_id id
-        html_source = @connection.get_html "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
-        t = parse_topic_html(html_source)
+        t = Topic.new
+        begin
+            html_source = @connection.get_html "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
+        rescue ETIError
+            html_source = @connection.get_html "http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s
+            t.archived = true
+        else
+            t.archived = false
+        end
+        
+        t = parse_topic_html(html_source, t, 1)
+
+        html_doc = Nokogiri::HTML(html_source)
+        # retrieve a list of links to the next pages of the topic
+        next_page_links = html_doc.xpath('//div[@id = "u0_2"]/span')
+        number_of_pages = next_page_links[0].text.to_i
+        # if no links exist, return
+        if number_of_pages == 1
+            return t
+        else
+            if t.archived
+                suburl = "archives"
+            else
+                suburl = "boards"
+            end
+            requests = []
+            for i in 2..number_of_pages
+                requests << @connection.queue("http://" + suburl + ".endoftheinter.net/showmessages.php?topic=" + t.topic_id.to_s + "&page=" + i.to_s)
+            end
+            start = Time.now
+            @connection.run
+            puts Time.now - start
+            for i in 2..number_of_pages
+                t = parse_topic_html(requests[i-2].response.body, t, i)
+            end
+        end
         return t
     end
 
@@ -303,6 +337,8 @@ private
         i = 0
         for p in posters
             poster      = p.text
+            userid      = p["href"]
+            userid      = userid.partition("=")[2]
             # gets the TC
             if(i==0) 
                 t.tc = poster
@@ -319,75 +355,12 @@ private
             content     = contents[i].text
 
             post_number = (page - 1) * 50 + i
-            t.posts[post_number]    =  Post.new(poster, timestamp, message_id, post_number+1, content)
+            t.posts[post_number]    =  Post.new(poster, userid, timestamp, message_id, post_number+1, content)
             i           += 1
         end
 =begin
-        # retrieve a list of links to the next pages of the topic
-        next_page_links = html_doc.xpath('//div[@id = "u0_2"]/span')
-        number_of_pages = next_page_links[0].text.to_i
-        # if no links exist, return
-        if number_of_pages == 1
-            return t
-        else
-            if t.archived
-                suburl = "archives"
-            else
-                suburl = "boards"
-            end
-            requests = []
-            for i in 2..number_of_pages
-                requests << @connection.queue("http://" + suburl + ".endoftheinter.net/showmessages.php?topic=" + t.topic_id.to_s + "&page=" + i.to_s)
-            end
-            start = Time.now
-            @connection.run
-            puts Time.now - start
-            for i in 2..number_of_pages
-                t = parse_topic_page(t,i, requests[i-2].response.body)
-            end
-        end
-=end
-        return t
-    end
-=begin
-    def parse_topic_page(t, page, html_source)
-        html_doc = Nokogiri::HTML(html_source)
-
-        # gets a list of the posters
-        posters             = html_doc.xpath('//div[@class = "message-container"]/div[@class = "message-top"]/a[contains(@href, "profile.php")]')
         
-        # gets a list of the timestamps. these are still embedded in other text, the for loop
-        # takes care of extracting them
-        timestamps          = html_doc.xpath('//div[@class = "message-container"]')
-
-        # gets a list of the link nodes with message_id
-        # its embedded in the href, the for loop extracts it
-        messages            = html_doc.xpath('//div[@class = "message-container"]/div[@class="message-top"]/a[contains(@href, "message.php")]')
-
-        # gets the content of the posts
-        contents            = html_doc.xpath('//td[@class = "message"]')
-
-        # gets the first page of posts
-        i = 0
-        for p in posters
-            poster      = p.text
-
-            timestamp   = timestamps[i].text
-            timestamp   = timestamp.partition("Posted:")[2]
-            timestamp   = timestamp.partition("|")[0]
-
-            message_id  = messages[i]["href"]
-            message_id  = message_id.partition("=")[2]
-            message_id  = message_id.partition("&")[0]
-
-            content     = contents[i].text
-
-            post_number = (page - 1) * 50 + i
-            t.posts[post_number]    =  Post.new(poster, timestamp, message_id, post_number+1, content)
-            i           += 1
-        end
-
+=end
         return t
     end
-=end
 end

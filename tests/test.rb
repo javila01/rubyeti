@@ -25,7 +25,7 @@ end
 # get_topic_list test
 begin
     start = Time.now
-   topic_list=eti.get_topic_list("Apple") 
+    topic_list=eti.get_topic_list("Apple") 
     #topic_list = eti.get_topic_list("LUE")
     puts Time.now - start
 rescue TopicError => e

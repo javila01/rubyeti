@@ -12,24 +12,28 @@ class Topic
         @archived = archived
     end
 
-    def filter username
-        temp_posts = []
+    # returns a Topic object containing the same metadata as the original, but with only the
+    # specified username's posts
+    def filter_by_username username = ""
+        t = Topic.new @topic_id, @topic_title, @tc, [], @tags, @num_msgs, @last_post, @archived
         for post in @posts
-            if post.username == username
-                temp_posts << post
+            if post.username.to_s == username.to_s
+                t.posts << post
             end
         end 
-        @posts = temp_posts
+        return t
     end
 
-    def filter userid
-        temp_posts = []
+    # returns a Topic object containing the same metadata as the original, but with only the
+    # specified userid's posts
+    def filter_by_userid userid = 0
+        t = Topic.new @topic_id, @topic_title, @tc, [], @tags, @num_msgs, @last_post, @archived
         for post in @posts
-            if post.userid == userid
-                temp_posts << post
+            if post.userid.to_s == userid.to_s
+                t.posts << post
             end
         end
-        @posts = temp_posts
+        return t
     end
 
     def to_s

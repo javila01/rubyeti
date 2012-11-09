@@ -22,7 +22,8 @@ class RubyETI_connector
         response = request.response
 	# checks for suspension
 	body = response.body
-	if body.partition("You are suspended.")[0] != ""
+    puts body
+	if body.to_s.partition("You are suspended.")[1] != ""
 		raise LoginError, "You are suspended."
 	end
 
