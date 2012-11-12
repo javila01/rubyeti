@@ -22,7 +22,6 @@ class RubyETI_connector
         response = request.response
 	# checks for suspension
 	body = response.body
-    puts body
 	if body.to_s.partition("You are suspended.")[1] != ""
 		raise LoginError, "You are suspended."
 	end
@@ -92,9 +91,7 @@ class RubyETI_connector
     end
 
     def run
-        start = Time.now
         @hydra.run
-        puts Time.now - start
     end
 
     def test_connection

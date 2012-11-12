@@ -15,20 +15,21 @@ class RubyETI
     # logs a user into the site with their credentials
     # with the session ("desktop" or "iphone") they specify
     # returns true on success
-    def login username, password, session
+    def login username, password, session = "iphone"
     end
 
     # posts a topic with the specified name and content
     # to all the tags listed in the array tag_list
     # sig is NOT automatically appended yet
-    def post_topic topic_name, topic_content, tag_list
+    def post_topic topic_name, topic_content, tag_list = ["LUE"]
     end
 
     # retrieves a topic list object, which is the first page of topics matching the tag combo entered
-    # currently &'s together all tags in the tag_list array
+    # tags should be passed as one string, as if you were putting it in the text box on the
+    # + page on ETI
     # DOES NOT WORK WITH ANONYMOUS TOPICS
     # throws TopicError
-    def get_topic_list tag_list
+    def get_topic_list tag_list = "LUE"
     end
 
     # retrieves a topic by id
@@ -36,6 +37,9 @@ class RubyETI
     # DOES NOT WORK WITH ANONYMOUS TOPICS
     # throws TopicError
     def get_topic_by_id id
+    end
+
+    def get_topic_range first_id, last_id
     end
 
     def star_topic_by_id id
@@ -49,6 +53,25 @@ class RubyETI
     # throws UserError
     def get_user_id username
     end
+    
+    ###############################################################################
+    # these four functions send tokens by either integer userid or string username
+    # to send anonymously, set the anon argument to true
+    # throws ETIError on failure
+
+    def send_good_token_by_id       userid,   reason, anon = false
+    end
+
+    def send_good_token_by_username username, reason, anon = false
+    end
+
+    def send_bad_token_by_id        userid,   reason, anon = false
+    end
+
+    def send_bad_token_by_username  username, reason, anon = false
+    end
+
+    ###############################################################################
 
     # uploads an image to eti and returns the <img> code as a string
     # still contains escape characters and surrounding quotes
@@ -153,7 +176,7 @@ class RubyETI
 
     end
 
-    def get_topic_list tag_list
+    def get_topic_list tag_list = "LUE"
         url         = "http://boards.endoftheinter.net/topics/" + tag_list
 
         html_source = @connection.get_html url
@@ -236,9 +259,7 @@ class RubyETI
             for i in 2..number_of_pages
                 requests << @connection.queue("http://" + suburl + ".endoftheinter.net/showmessages.php?topic=" + t.topic_id.to_s + "&page=" + i.to_s)
             end
-            start = Time.now
             @connection.run
-            puts Time.now - start
             for i in 2..number_of_pages
                 t = parse_topic_html(requests[i-2].response.body, t, i)
             end
@@ -246,10 +267,13 @@ class RubyETI
         return t
     end
 
+    def get_topic_range first_id, last_id
+    end
+
     def star_topic_by_id id
         response = @connection.post_html "http://boards.endoftheinter.net/ajax.php?r=1&t=" + id.to_s
         if response.code != 200
-            throw TopicError, "Failed to star topic " + id.to_s
+            raise TopicError, "Failed to star topic " + id.to_s
         end
         return true
     end
@@ -257,7 +281,7 @@ class RubyETI
     def unstar_topic_by_id id
         response = @connection.post_html "http://boards.endoftheinter.net/ajax.php?r=2&t=" + id.to_s
         if response.code != 200
-            throw TopicError, "Failed to unstar topic " + id.to_s
+            raise TopicError, "Failed to unstar topic " + id.to_s
         end
         return true
     end
@@ -269,8 +293,58 @@ class RubyETI
         if(user_search_source.size==0)
             raise UserError, "User does not exist"
         else
-            return user_search_source
+            return user_search_source.to_i
         end
+    end
+
+    def send_good_token_by_id userid, reason, anon = false
+        if anon
+            response = @connection.post_html "http://endoftheinter.net/token.php", "type=2&user=" + userid.to_s + "&anon=off&reason=" + reason
+        else
+            response = @connection.post_html "http://endoftheinter.net/token.php", "type=2&user=" + userid.to_s + "&reason=" + reason
+        end
+        if response.code != 302
+            raise ETIError, "Could not send good token to userid " + userid.to_s + "\nCode: " + response.code.to_s
+        end
+        true
+    end
+
+    def send_good_token_by_username username, reason, anon = false
+        userid = get_user_id username
+        if anon
+            response = @connection.post_html "http://endoftheinter.net/token.php", "type=2&user=" + userid.to_s + "&anon=off&reason=" + reason
+        else
+            response = @connection.post_html "http://endoftheinter.net/token.php", "type=2&user=" + userid.to_s + "&reason=" + reason
+        end
+        if response.code != 302
+            raise ETIError, "Could not send good token to userid " + userid.to_s + "\nCode: " + response.code.to_s
+        end
+        true
+    end
+
+    def send_bad_token_by_id userid, reason, anon = false
+        if anon
+            response = @connection.post_html "http://endoftheinter.net/token.php", "type=1&user=" + userid.to_s + "&anon=off&reason=" + reason
+        else
+            response = @connection.post_html "http://endoftheinter.net/token.php", "type=1&user=" + userid.to_s + "&reason=" + reason
+        end
+        if response.code != 302
+            raise ETIError, "Could not send good token to userid " + userid.to_s + "\nCode: " + response.code.to_s
+        end
+        true
+    end
+
+    def send_bad_token_by_username username, reason, anon = false
+        userid = get_user_id username
+        if anon
+            response = @connection.post_html "http://endoftheinter.net/token.php", "type=1&user=" + userid.to_s + "&anon=off&reason=" + reason
+        else
+            response = @connection.post_html "http://endoftheinter.net/token.php", "type=1&user=" + userid.to_s + "&reason=" + reason
+        end
+        if response.code != 302
+            raise ETIError, "Could not send good token to userid " + userid.to_s + "\nCode: " + response.code.to_s
+        end
+        true
     end
 
     def upload_image path_to_image
