@@ -54,13 +54,14 @@ class RubyETI_connector
                                         :headers => {'Cookie' => @cookie})
         @hydra.queue(request)
         @hydra.run
+
         if request.response.code != 200
             raise ETIError, "Failed to GET. URL = " + url.to_s + "\nCode = " + request.response.code.to_s
         end
         request.response.body
     end
 
-    def post_html url, body
+    def post_html url, body = ""
         test_connection
         request = Typhoeus::Request.new(url,
                                         :method => :post,
@@ -68,9 +69,6 @@ class RubyETI_connector
                                         :headers => {'Cookie' => @cookie})
         @hydra.queue(request)
         @hydra.run
-        if request.response.code != 302
-            raise TopicError, "Failed to POST. URL = " + url.to_s + "\nCode = " + request.response.code.to_s
-        end
         return request.response
 
     end

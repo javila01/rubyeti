@@ -38,6 +38,12 @@ class RubyETI
     def get_topic_by_id id
     end
 
+    def star_topic_by_id id
+    end
+
+    def unstar_topic_by_id id
+    end
+
     # returns the userid of the specified username
     # returns false and error message if not found
     # throws UserError
@@ -119,7 +125,9 @@ class RubyETI
         hash            = hash_field[0]["value"]
         # posts the topic using POST
         post_response = @connection.post_html "http://boards.endoftheinter.net/postmsg.php", "title=" + topic_name + "&tag=" + tag_field + "&message=" + topic_content + "&h=" + hash + "&submit=Post Message"
-        
+        if post_response.code != 302
+            raise TopicError, "Failed to POST topic.\nCode = " + post_response.code.to_s
+        end
         # retrieves topic id
         response_headers = post_response.headers
         next_header = false
@@ -236,6 +244,22 @@ class RubyETI
             end
         end
         return t
+    end
+
+    def star_topic_by_id id
+        response = @connection.post_html "http://boards.endoftheinter.net/ajax.php?r=1&t=" + id.to_s
+        if response.code != 200
+            throw TopicError, "Failed to star topic " + id.to_s
+        end
+        return true
+    end
+
+    def unstar_topic_by_id id
+        response = @connection.post_html "http://boards.endoftheinter.net/ajax.php?r=2&t=" + id.to_s
+        if response.code != 200
+            throw TopicError, "Failed to unstar topic " + id.to_s
+        end
+        return true
     end
 
     def get_user_id username
