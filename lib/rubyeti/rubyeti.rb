@@ -15,12 +15,12 @@ class RubyETI
     # logs a user into the site with their credentials
     # with the session ("desktop" or "iphone") they specify
     # returns true on success
-    def login(username, password, session)
+    def login username, password, session
     end
 
     # posts a topic with the specified name and content. sig is NOT automatically appended yet
     # posts to the LUE tag only at the moment
-    def post_topic(topic_name, topic_content)
+    def post_topic topic_name, topic_content, tag_list
     end
 
     # retrieves a topic list object, which is the first page of topics matching the tag combo entered
@@ -34,13 +34,13 @@ class RubyETI
     # returns a topic object on success, and should (doesn't yet) return failure indicator on fail
     # DOES NOT WORK WITH ANONYMOUS TOPICS
     # throws TopicError
-    def get_topic_by_id(id)
+    def get_topic_by_id id
     end
 
     # returns the userid of the specified username
     # returns false and error message if not found
     # throws UserError
-    def get_user_id(username)
+    def get_user_id username
     end
 
     # uploads an image to eti and returns the <img> code as a string
@@ -52,13 +52,13 @@ class RubyETI
     # returns true if online
     # false if not
     # throws UserError
-    def is_user_online(username)
+    def is_user_online username
     end
 
     # returns true if online
     # false if not
     # throws UserError
-    def is_user_online_by_id(userid)
+    def is_user_online_by_id userid
     end
 
     # creates a new private message thread with the user specified by the userid user
@@ -66,10 +66,10 @@ class RubyETI
     # both subject AND message must be >= 5 characters, or will fail
     # does not work with *special* characters
     # throws UserError
-    def create_private_message(username, subject, message)
+    def create_private_message username, subject, message
     end
 
-    def create_private_message_by_id(userid, subject, message)
+    def create_private_message_by_id userid, subject, message
     end
 end
 
@@ -100,7 +100,7 @@ class RubyETI
         @connection.test_connection
     end
 
-    def post_topic topic_name, topic_content
+    def post_topic topic_name, topic_content, tag_list = ["LUE"]
         # gets the html from the post msg page, to get the hash value
         html_source     = @connection.get_html "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
         # creates nokogiri object to parse
@@ -110,7 +110,31 @@ class RubyETI
         # extracts the hash from the html tag
         hash            = hash_field[0]["value"]
         # posts the topic using POST
-        @connection.post_html "http://boards.endoftheinter.net/postmsg.php", "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=" + hash + "&submit=Post Message"
+        post_response = @connection.post_html "http://boards.endoftheinter.net/postmsg.php", "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=" + hash + "&submit=Post Message"
+        
+        # retrieves topic id
+        response_headers = post_response.headers
+        next_header = false
+        topic_id = ""
+        for header in response_headers
+            for element in header
+                if next_header
+                    topic_id = element.to_s.partition("=")[2]
+                    break
+                end
+                if element == "Location"
+                    next_header = true
+                else
+                    next_header = false
+                end
+            end
+            if next_header
+                break
+            end
+        end
+
+        return topic_id
+
     end
 
     def get_topic_list tag_list
