@@ -18,8 +18,9 @@ class RubyETI
     def login username, password, session
     end
 
-    # posts a topic with the specified name and content. sig is NOT automatically appended yet
-    # posts to the LUE tag only at the moment
+    # posts a topic with the specified name and content
+    # to all the tags listed in the array tag_list
+    # sig is NOT automatically appended yet
     def post_topic topic_name, topic_content, tag_list
     end
 
@@ -101,8 +102,15 @@ class RubyETI
     end
 
     def post_topic topic_name, topic_content, tag_list = ["LUE"]
+        tag_field = ""
+        for tag in tag_list
+            if(tag!=tag_list[0])
+                tag_field += ","
+            end
+            tag_field += tag
+        end
         # gets the html from the post msg page, to get the hash value
-        html_source     = @connection.get_html "http://boards.endoftheinter.net/postmsg.php?tag=LUE"
+        html_source     = @connection.get_html "http://boards.endoftheinter.net/postmsg.php?tag=" + tag_field
         # creates nokogiri object to parse
         html_doc        = Nokogiri::HTML(html_source)
         # finds the hash tag
@@ -110,7 +118,7 @@ class RubyETI
         # extracts the hash from the html tag
         hash            = hash_field[0]["value"]
         # posts the topic using POST
-        post_response = @connection.post_html "http://boards.endoftheinter.net/postmsg.php", "title=" + topic_name + "&tag=LUE&message=" + topic_content + "&h=" + hash + "&submit=Post Message"
+        post_response = @connection.post_html "http://boards.endoftheinter.net/postmsg.php", "title=" + topic_name + "&tag=" + tag_field + "&message=" + topic_content + "&h=" + hash + "&submit=Post Message"
         
         # retrieves topic id
         response_headers = post_response.headers
