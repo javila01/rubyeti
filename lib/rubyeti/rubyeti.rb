@@ -53,7 +53,7 @@ class RubyETI
     # throws UserError
     def get_user_id username
     end
-    
+
     ###############################################################################
     # these four functions send tokens by either integer userid or string username
     # to send anonymously, set the anon argument to true
@@ -107,6 +107,9 @@ class ETIError < StandardError
 end
 
 class LoginError < ETIError
+end
+
+class SessionError < ETIError
 end
 
 class TopicError < ETIError
@@ -268,6 +271,13 @@ class RubyETI
     end
 
     def get_topic_range first_id, last_id
+        topics = []
+        i = first_id
+        while i <= last_id do
+            topics << (get_topic_by_id i)
+            i += 1
+        end
+        return topics
     end
 
     def star_topic_by_id id

@@ -13,7 +13,7 @@ class RubyETI_connector
                             :method => :post,
                             :body   => "username=" + username + "&password=" + password)
         else
-            raise LoginError, "Invalid session argument"
+            raise SessionError, "Invalid session argument"
         end
 
         @hydra.queue(request)
