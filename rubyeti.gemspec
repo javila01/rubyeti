@@ -7,8 +7,8 @@ Gem::Specification.new do |s|
   s.authors     = ["Christopher Lenart"]
   s.email       = 'clenart1@gmail.com'
   s.files       = Dir.glob("lib/**/*") + Dir.glob("test/**/*") +["README.md"]
-  s.add_runtime_dependency 'nokogiri'
-  s.add_runtime_dependency 'typhoeus'
+  s.add_runtime_dependency 'nokogiri' ["= 1.5.5"]
+  s.add_runtime_dependency 'typhoeus' ["= 0.5.0"]
   s.homepage    =
     'https://github.com/clenart/rubyeti'
 end
