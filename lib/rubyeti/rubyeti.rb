@@ -34,7 +34,7 @@ class RubyETI
     end
 
     # retrieves a topic by id
-    # returns a topic object on success, and should (doesn't yet) return failure indicator on fail
+    # returns a topic object on success
     # DOES NOT WORK WITH ANONYMOUS TOPICS
     # throws TopicError
     def get_topic_by_id id
@@ -87,8 +87,7 @@ class RubyETI
     ###############################################################################
 
     # uploads an image to eti and returns the <img> code as a string
-    # still contains escape characters and surrounding quotes
-    # should eventually be parsed out
+    # only has been tested with absolute paths from the root directory
     def upload_image path_to_image
     end
 
