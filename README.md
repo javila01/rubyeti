@@ -29,6 +29,12 @@ In your ruby file, you must
 require 'rubyeti'
 ```
 
+Depending on your version of RubyGems, you may have to
+```ruby
+require 'rubygems'
+```
+above the rubyeti require in order for it to recognize the gem
+
 To create a RubyETI object:
 ```ruby
 eti = RubyETI.new
