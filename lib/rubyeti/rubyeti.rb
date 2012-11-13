@@ -15,6 +15,7 @@ class RubyETI
     # logs a user into the site with their credentials
     # with the session ("desktop" or "iphone") they specify
     # returns true on success
+    # throws SessionError if an invalid session is passed
     def login username, password, session = "iphone"
     end
 
@@ -39,15 +40,24 @@ class RubyETI
     def get_topic_by_id id
     end
 
+    # returns an array of topic objects, based on the topic ids passed in the ids array
+    # throws TopicError
     def get_topics_by_id ids
     end
 
+    # returns an array of topic objects, based on the range of topics between first_id
+    # and last_id, inclusive
+    # throws TopicError
     def get_topic_range first_id, last_id
     end
 
+    # stars the topic id
+    # throws TopicError
     def star_topic_by_id id
     end
 
+    # unstars the topic id
+    # throws TopicError
     def unstar_topic_by_id id
     end
 
