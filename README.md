@@ -39,54 +39,7 @@ To login:
 eti.login "username", "password"
 ```
 
-Topic list object:
-```ruby
-class TopicList
-    attr_accessor :topics
-
-    def initialize topics = []
-    end
-end
-
-class TopicListRow
-    attr_accessor :topic_name, :topic_id, :tags, :tc, :msgs, :last_post
-
-    def initialize topic_name = "", topic_id = 0, tags = [], tc = "", msgs = 0, last_post = ""
-    end
-end
-```
-
-Topic object:
-```ruby
-class Topic
-    attr_accessor :topic_id, :topic_title, :tc, :posts, :tags, :num_msgs, :last_post, :archived
-
-    def initialize topic_id = 0, topic_title = "", tc = "", posts = [], tags = [], num_msgs = 0, last_post = 0, archived = true
-    end
-
-    # returns a Topic object containing the same metadata as the original, but with only the
-    # specified username's posts
-    def filter_by_username username = ""
-    end
-
-    # returns a Topic object containing the same metadata as the original, but with only the
-    # specified userid's posts
-    def filter_by_userid userid = 0
-    end
-end
-```
-
-Post object:
-```ruby
-class Post
-    attr_accessor :username, :userid, :timestamp, :message_id, :post_number, :content
-
-    def initialize username = "", userid = "", timestamp = "", message_id = 1, post_number = 1, content = ""
-    end
-end
-```
-
-Full documentation ( also available at the top of lib/rubyeti/rubyeti.rb )
+Full RubyETI class
 ```ruby
 # RubyETI
 # A Ruby interface to ETI
@@ -202,6 +155,53 @@ class RubyETI
     end
 
     def create_private_message_by_id userid, subject, message
+    end
+end
+```
+
+Topic List class:
+```ruby
+class TopicList
+    attr_accessor :topic_rows
+
+    def initialize topic_rows = []
+    end
+end
+
+class TopicListRow
+    attr_accessor :topic_name, :topic_id, :tags, :tc, :msgs, :last_post
+
+    def initialize topic_name = "", topic_id = 0, tags = [], tc = "", msgs = 0, last_post = ""
+    end
+end
+```
+
+Topic class:
+```ruby
+class Topic
+    attr_accessor :topic_id, :topic_title, :tc, :posts, :tags, :num_msgs, :last_post, :archived
+
+    def initialize topic_id = 0, topic_title = "", tc = "", posts = [], tags = [], num_msgs = 0, last_post = 0, archived = true
+    end
+
+    # returns a Topic object containing the same metadata as the original, but with only the
+    # specified username's posts
+    def filter_by_username username = ""
+    end
+
+    # returns a Topic object containing the same metadata as the original, but with only the
+    # specified userid's posts
+    def filter_by_userid userid = 0
+    end
+end
+```
+
+Post class:
+```ruby
+class Post
+    attr_accessor :username, :userid, :timestamp, :message_id, :post_number, :content
+
+    def initialize username = "", userid = "", timestamp = "", message_id = 1, post_number = 1, content = ""
     end
 end
 ```
