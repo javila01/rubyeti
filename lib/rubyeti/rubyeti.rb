@@ -39,6 +39,9 @@ class RubyETI
     def get_topic_by_id id
     end
 
+    def get_topics_by_id ids
+    end
+
     def get_topic_range first_id, last_id
     end
 
@@ -175,7 +178,7 @@ class RubyETI
             end
         end
 
-        return topic_id
+        return topic_id.to_i
 
     end
 
@@ -270,6 +273,14 @@ class RubyETI
         return t
     end
 
+    def get_topics_by_id ids
+        topics = []
+        for id in ids
+            topics << (get_topic_by_id id)
+        end
+        return topics
+    end
+
     def get_topic_range first_id, last_id
         topics = []
         i = first_id
@@ -321,15 +332,7 @@ class RubyETI
 
     def send_good_token_by_username username, reason, anon = false
         userid = get_user_id username
-        if anon
-            response = @connection.post_html "http://endoftheinter.net/token.php", "type=2&user=" + userid.to_s + "&anon=off&reason=" + reason
-        else
-            response = @connection.post_html "http://endoftheinter.net/token.php", "type=2&user=" + userid.to_s + "&reason=" + reason
-        end
-        if response.code != 302
-            raise ETIError, "Could not send good token to userid " + userid.to_s + "\nCode: " + response.code.to_s
-        end
-        true
+        return send_good_token_by_id userid, reason, anon
     end
 
     def send_bad_token_by_id userid, reason, anon = false
@@ -346,15 +349,7 @@ class RubyETI
 
     def send_bad_token_by_username username, reason, anon = false
         userid = get_user_id username
-        if anon
-            response = @connection.post_html "http://endoftheinter.net/token.php", "type=1&user=" + userid.to_s + "&anon=off&reason=" + reason
-        else
-            response = @connection.post_html "http://endoftheinter.net/token.php", "type=1&user=" + userid.to_s + "&reason=" + reason
-        end
-        if response.code != 302
-            raise ETIError, "Could not send good token to userid " + userid.to_s + "\nCode: " + response.code.to_s
-        end
-        true
+        return send_bad_token_by_id userid, reason, anon
     end
 
     def upload_image path_to_image
@@ -368,7 +363,8 @@ class RubyETI
         if image_link[0] == nil
             raise ETIError, "Image uploading failed, invalid file format"
         end
-        image_link[0]["value"]
+        im_link = image_link[0]["value"]
+        im_link = extract_escape_characters im_link
     end
 
     def is_user_online username
@@ -488,9 +484,11 @@ private
             t.posts[post_number]    =  Post.new(poster, userid, timestamp, message_id, post_number+1, content)
             i           += 1
         end
-=begin
-        
-=end
         return t
+    end
+
+    def extract_escape_characters input
+        input = input.delete "\\"
+        return input
     end
 end
