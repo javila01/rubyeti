@@ -1,9 +1,9 @@
 Gem::Specification.new do |s|
   s.name        = 'rubyeti'
-  s.version     = '0.0.91'
+  s.version     = '0.1.0'
   s.date        = '2010-11-12'
   s.summary     = "A Ruby interface to ETI"
-  s.description = "Pre-release test"
+  s.description = "Version 0.1.0"
   s.authors     = ["Christopher Lenart"]
   s.email       = 'clenart1@gmail.com'
   s.files       = Dir.glob("lib/**/*") + Dir.glob("test/**/*") +["README.md"]
