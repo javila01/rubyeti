@@ -37,12 +37,12 @@ class RubyETI
     # returns a topic object on success
     # DOES NOT WORK WITH ANONYMOUS TOPICS
     # throws TopicError
-    def get_topic_by_id id
+    def get_topic_by_id topic_id
     end
 
     # returns an array of topic objects, based on the topic ids passed in the ids array
     # throws TopicError
-    def get_topics_by_id ids
+    def get_topics_by_id topic_ids
     end
 
     # returns an array of topic objects, based on the range of topics between first_id
@@ -51,14 +51,22 @@ class RubyETI
     def get_topic_range first_id, last_id
     end
 
+    # replies to topic topic_id with message
+    def reply_to_topic topic_id, message
+    end
+
+    # deletes the message with id message_id from topic topic_id
+    def delete_message message_id, topic_id
+    end
+
     # stars the topic id
     # throws TopicError
-    def star_topic_by_id id
+    def star_topic_by_id topic_id
     end
 
     # unstars the topic id
     # throws TopicError
-    def unstar_topic_by_id id
+    def unstar_topic_by_id topic_id
     end
 
     # returns the userid of the specified username
@@ -300,6 +308,33 @@ class RubyETI
         return topics
     end
 
+    def reply_to_topic topic_id, message
+        # gets the html from the post msg page, to get the hash value
+        html_source     = @connection.get_html "http://boards.endoftheinter.net/showmessages.php?topic=" + topic_id.to_s
+        # creates nokogiri object to parse
+        html_doc        = Nokogiri::HTML(html_source)
+        # finds the hash tag
+        hash_field      = html_doc.xpath('//input[@name = "h"]')
+        # extracts the hash from the html tag
+        hash            = hash_field[0]["value"]
+
+        response = @connection.post_html "http://boards.endoftheinter.net/async-post.php", "topic=" + topic_id.to_s + "&h=" + hash.to_s + "&message=" + message.to_s
+    end
+
+    def delete_message message_id, topic_id
+        # gets the html from the post msg page, to get the hash value
+        html_source     = @connection.get_html "http://boards.endoftheinter.net/message.php?id=" + message_id.to_s + "&topic=" + topic_id.to_s + "&r=0"
+        # creates nokogiri object to parse
+        html_doc        = Nokogiri::HTML(html_source)
+        # finds the hash tag
+        hash_field      = html_doc.xpath('//input[@name = "h"]')
+        # extracts the hash from the html tag
+        hash            = hash_field[0]["value"]
+
+        response = @connection.post_html "http://boards.endoftheinter.net/message.php?id=" + message_id.to_s + "&topic=" + topic_id.to_s + "&r", "h=" + hash.to_s + "&action=1"
+        puts response.code
+    end
+
     def star_topic_by_id id
         response = @connection.post_html "http://boards.endoftheinter.net/ajax.php?r=1&t=" + id.to_s
         if response.code != 200
@@ -417,11 +452,14 @@ class RubyETI
         hash_field      = html_doc.xpath('//input[@name = "h"]')
         hash            = hash_field[0]["value"]
 
+        # extracts characters that would cause it to fail
+        #subject = escape_http_query_characters(subject)
+        #message = escape_http_query_characters(message)
+
         # posts the pm information to the connection
         # DOES NOT send your sig automatically
-        @connection.url = "http://endoftheinter.net/postmsg.php"
         post_field      = "puser=" + userid.to_s + "&title=" + subject.to_s + "&message=" + message.to_s + "&h=" + hash.to_s + "&submit=Send Message"
-        @connection.post_html post_field
+        @connection.post_html "http://endoftheinter.net/postmsg.php", post_field
     end
 
 private
@@ -498,6 +536,24 @@ private
 
     def extract_escape_characters input
         input = input.delete "\\"
+        return input
+    end
+
+    def escape_http_query_characters input
+        ind = 0
+        while ind != nil
+            ind = input.index('?', ind+2)
+            if ind != nil
+                input.insert(ind, '\\')
+            end
+        end
+        ind = 0
+        while ind != nil
+            ind = input.index('&', ind+2)
+            if ind != nil
+                input.insert(ind, '\\')
+            end
+        end
         return input
     end
 end
