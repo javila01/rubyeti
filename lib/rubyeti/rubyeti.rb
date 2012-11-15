@@ -170,8 +170,8 @@ class RubyETI
         # extracts the hash from the html tag
         hash            = hash_field[0]["value"]
 
-        topic_content += extract_sig html_source
-        
+        topic_content += extract_sig html_doc
+
         # posts the topic using POST
         post_response = @connection.post_html "http://boards.endoftheinter.net/postmsg.php", "title=" + topic_name + "&tag=" + tag_field + "&message=" + topic_content + "&h=" + hash + "&submit=Post Message"
         if post_response.code != 302
@@ -316,12 +316,16 @@ class RubyETI
         html_source     = @connection.get_html "http://boards.endoftheinter.net/showmessages.php?topic=" + topic_id.to_s
         # creates nokogiri object to parse
         html_doc        = Nokogiri::HTML(html_source)
+
+        check_for_invalid_topic html_doc
+        check_for_closed_topic  html_doc
+
         # finds the hash tag
         hash_field      = html_doc.xpath('//input[@name = "h"]')
         # extracts the hash from the html tag
         hash            = hash_field[0]["value"]
 
-        message += extract_sig html_source
+        message += extract_sig html_doc
 
         response = @connection.post_html "http://boards.endoftheinter.net/async-post.php", "topic=" + topic_id.to_s + "&h=" + hash.to_s + "&message=" + message.to_s
     end
@@ -457,7 +461,7 @@ class RubyETI
         hash_field      = html_doc.xpath('//input[@name = "h"]')
         hash            = hash_field[0]["value"]
 
-        message += extract_sig html_source
+        message += extract_sig html_doc
 
         # extracts characters that would cause it to fail
         #subject = escape_http_query_characters(subject)
@@ -477,10 +481,8 @@ private
 
         # creates a nokogiri object for parsing the topic
         html_doc            = Nokogiri::HTML(html_source)
-        em = html_doc.xpath('//div/em')
-        if em[0] != nil && em.text == "Invalid topic."
-            raise TopicError, 'Invalid topic'
-        end
+
+        check_for_invalid_topic html_doc
 
         # gets the topic id
         suggest_tag_link    = html_doc.xpath('//a[contains(@href, "edittags.php")]')
@@ -541,8 +543,25 @@ private
         return t
     end
 
-    def extract_sig html_input
-        html_doc = Nokogiri::HTML(html_input)
+    def check_for_invalid_topic html_doc
+        ems = html_doc.xpath('//em')
+        for em in ems
+            if em.text == "Invalid topic."
+                raise TopicError, "Invalid topic."
+            end
+        end
+    end
+
+    def check_for_closed_topic html_doc
+        ems = html_doc.xpath('//em')
+        for em in ems
+            if ((em.text).index "This topic has been closed.") != nil
+                raise TopicError, "This topic has been closed."
+            end
+        end
+    end
+
+    def extract_sig html_doc
         sig = html_doc.xpath('//textarea[@name = "message"]')
         return sig.text
     end
