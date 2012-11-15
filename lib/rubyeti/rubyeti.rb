@@ -169,6 +169,9 @@ class RubyETI
         hash_field      = html_doc.xpath('//input[@name = "h"]')
         # extracts the hash from the html tag
         hash            = hash_field[0]["value"]
+
+        topic_content += extract_sig html_source
+        
         # posts the topic using POST
         post_response = @connection.post_html "http://boards.endoftheinter.net/postmsg.php", "title=" + topic_name + "&tag=" + tag_field + "&message=" + topic_content + "&h=" + hash + "&submit=Post Message"
         if post_response.code != 302
