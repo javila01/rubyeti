@@ -454,6 +454,8 @@ class RubyETI
         hash_field      = html_doc.xpath('//input[@name = "h"]')
         hash            = hash_field[0]["value"]
 
+        message += extract_sig html_source
+
         # extracts characters that would cause it to fail
         #subject = escape_http_query_characters(subject)
         #message = escape_http_query_characters(message)
