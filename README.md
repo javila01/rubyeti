@@ -70,7 +70,6 @@ class RubyETI
 
     # posts a topic with the specified name and content
     # to all the tags listed in the array tag_list
-    # sig is NOT automatically appended yet
     def post_topic topic_name, topic_content, tag_list = ["LUE"]
     end
 
@@ -163,7 +162,6 @@ class RubyETI
     end
 
     # creates a new private message thread with the user specified by the userid user
-    # does NOT send your sig automatically
     # both subject AND message must be >= 5 characters, or will fail
     # does not work with *special* characters
     # throws UserError
