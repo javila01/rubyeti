@@ -165,6 +165,10 @@ class RubyETI
         html_source     = @connection.get_html "http://boards.endoftheinter.net/postmsg.php?tag=" + tag_field
         # creates nokogiri object to parse
         html_doc        = Nokogiri::HTML(html_source)
+
+        check_for_invalid_topic        html_doc
+        check_for_tag_permission_error html_doc
+
         # finds the hash tag
         hash_field      = html_doc.xpath('//input[@name = "h"]')
         # extracts the hash from the html tag
@@ -557,6 +561,15 @@ private
         for em in ems
             if ((em.text).index "This topic has been closed.") != nil
                 raise TopicError, "This topic has been closed."
+            end
+        end
+    end
+
+    def check_for_tag_permission_error html_doc
+        ems = html_doc.xpath('//em')
+        for em in ems
+            if em.text == "Tag permission error"
+                raise TopicError, "Tag permission error"
             end
         end
     end
