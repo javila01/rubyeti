@@ -52,10 +52,12 @@ class RubyETI
     end
 
     # replies to topic topic_id with message
+    # throws TopicError
     def reply_to_topic topic_id, message
     end
 
     # deletes the message with id message_id from topic topic_id
+    # throws TopicError
     def delete_message message_id, topic_id
     end
 
