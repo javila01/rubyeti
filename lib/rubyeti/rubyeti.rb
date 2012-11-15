@@ -318,6 +318,8 @@ class RubyETI
         # extracts the hash from the html tag
         hash            = hash_field[0]["value"]
 
+        message += extract_sig html_source
+
         response = @connection.post_html "http://boards.endoftheinter.net/async-post.php", "topic=" + topic_id.to_s + "&h=" + hash.to_s + "&message=" + message.to_s
     end
 
@@ -532,6 +534,12 @@ private
             i           += 1
         end
         return t
+    end
+
+    def extract_sig html_input
+        html_doc = Nokogiri::HTML(html_input)
+        sig = html_doc.xpath('//textarea[@name = "message"]')
+        return sig.text
     end
 
     def extract_escape_characters input
