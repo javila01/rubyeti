@@ -8,11 +8,13 @@ class RubyETI_connector
         if session == "desktop"
             request = Typhoeus::Request.new("https://endoftheinter.net/index.php",
                             :method => :post,
-                            :body   => "b=" + username + "&p=" + password)
+                            :body   => "b=" + username + "&p=" + password,
+                            :headers => {'User-Agent' => 'rubyeti'})
         elsif session == "iphone"
             request = Typhoeus::Request.new("http://iphone.endoftheinter.net/",
                             :method => :post,
-                            :body   => "username=" + username + "&password=" + password)
+                            :body   => "username=" + username + "&password=" + password,
+                            :headers => {'User-Agent' => 'rubyeti'})
         else
             raise SessionError, "Invalid session argument"
         end
@@ -51,7 +53,7 @@ class RubyETI_connector
         test_connection
         request = Typhoeus::Request.new(url,
                                         :method => :get,
-                                        :headers => {'Cookie' => @cookie})
+                                        :headers => {'Cookie' => @cookie, 'User-Agent' => 'rubyeti'})
         @hydra.queue(request)
         @hydra.run
 
@@ -66,7 +68,7 @@ class RubyETI_connector
         request = Typhoeus::Request.new(url,
                                         :method => :post,
                                         :body   => body,
-                                        :headers => {'Cookie' => @cookie})
+                                        :headers => {'Cookie' => @cookie, 'User-Agent' => 'rubyeti'})
         @hydra.queue(request)
         @hydra.run
         return request.response
@@ -77,7 +79,7 @@ class RubyETI_connector
         request = Typhoeus::Request.new("http://u.endoftheinter.net/u.php",
                                         :method => :post,
                                         :body => {:name => "file", :file => File.open(image_path, "r")},
-                                        :headers => {'Cookie' => @cookie} )
+                                        :headers => {'Cookie' => @cookie, 'User-Agent' => 'rubyeti'} )
         @hydra.queue(request)
         @hydra.run
         request.response
@@ -86,7 +88,7 @@ class RubyETI_connector
     def queue url
         request = Typhoeus::Request.new(url,
                                         :method => :get,
-                                        :headers => {'Cookie' => @cookie})
+                                        :headers => {'Cookie' => @cookie, 'User-Agent' => 'rubyeti'})
         @hydra.queue(request)
         request
     end
@@ -97,8 +99,8 @@ class RubyETI_connector
 
     def test_connection
         request = Typhoeus::Request.new("http://archives.endoftheinter.net/showmessages.php?topic=1",
-                        :method => :get,
-                        :headers => {'Cookie' => @cookie})
+                                        :method => :get,
+                                        :headers => {'Cookie' => @cookie, 'User-Agent' => 'rubyeti'})
         @hydra.queue(request)
         @hydra.run
         code = request.response.code
