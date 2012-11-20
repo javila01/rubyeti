@@ -121,6 +121,10 @@ class RubyETI
 
     def create_private_message_by_id userid, subject, message
     end
+
+    # retrieves a PrivateMessageThread object 
+    def get_private_message_thread thread
+    end
 end
 
 class ETIError < StandardError
@@ -533,7 +537,7 @@ private
             userid      = p["href"]
             userid      = userid.partition("=")[2]
             # gets the TC
-            if(i==0) 
+            if(i==0 && page==1) 
                 t.tc = poster
             end
 
