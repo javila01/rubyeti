@@ -263,7 +263,7 @@ class RubyETI
             t.archived = false
         end
         
-        t = parse_topic_html(html_source, t, 1)
+        t = parse_topic_html(html_source, t, 1, id)
 
         html_doc = Nokogiri::HTML(html_source)
 
@@ -291,7 +291,7 @@ class RubyETI
             end
             @connection.run
             for i in 2..number_of_pages
-                t = parse_topic_html(requests[i-2].response.body, t, i)
+                t = parse_topic_html(requests[i-2].response.body, t, i, id)
             end
         end
         return t
@@ -309,7 +309,13 @@ class RubyETI
         topics = []
         i = first_id
         while i <= last_id do
-            topics << (get_topic_by_id i)
+            begin
+                topic = get_topic_by_id i
+            rescue ETIError
+                topic = ""
+            else
+                topics << topic
+            end
             i += 1
         end
         return topics
@@ -479,7 +485,7 @@ class RubyETI
 
 private
 
-    def parse_topic_html html_source, topic, page
+    def parse_topic_html html_source, topic, page, topic_id
         # creates a new topic to store the data in
         t = topic
 
@@ -489,10 +495,11 @@ private
         check_for_invalid_topic html_doc
 
         # gets the topic id
-        suggest_tag_link    = html_doc.xpath('//a[contains(@href, "edittags.php")]')
-        link                = suggest_tag_link[0]["href"]
-        link                = link.partition("=")[2]
-        t.topic_id          = link.to_i
+        #suggest_tag_link    = html_doc.xpath('//a[contains(@href, "edittags.php")]')
+        
+        #link                = suggest_tag_link[0]["href"]
+        #link                = link.partition("=")[2]
+        t.topic_id          = topic_id
 
         # gets the topic title
         t.topic_title       = html_doc.xpath('//h1').text
@@ -517,7 +524,7 @@ private
         messages            = html_doc.xpath('//div[@class = "message-container"]/div[@class="message-top"]/a[contains(@href, "message.php")]')
 
         # gets the content of the posts
-        contents            = html_doc.xpath('//td[@class = "message"]')
+        contents            = html_doc.xpath('//div[@class = "message"]')
 
         # gets the first page of posts
         i = 0
