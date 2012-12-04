@@ -125,6 +125,9 @@ class RubyETI
     # retrieves a PrivateMessageThread object 
     def get_private_message_thread thread
     end
+
+    def is_pin_open
+    end
 end
 
 class ETIError < StandardError
@@ -485,6 +488,18 @@ class RubyETI
         # DOES NOT send your sig automatically
         post_field      = "puser=" + userid.to_s + "&title=" + subject.to_s + "&message=" + message.to_s + "&h=" + hash.to_s + "&submit=Send Message"
         @connection.post_html "http://endoftheinter.net/postmsg.php", post_field
+    end
+
+    def is_pin_open
+        html_source = @connection.get_html "http://endoftheinter.net/shop.php"
+        html_doc = Nokogiri::HTML(html_source)
+        links = html_doc.xpath('//a')
+        for link in links
+            if link.text.partition("Pin")[1] != ""
+                return true
+            end
+        end
+        return false
     end
 
 private
