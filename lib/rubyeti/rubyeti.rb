@@ -351,7 +351,7 @@ class RubyETI
                     puts "got topic " + topic_id.to_s
                 rescue ETIError => e
                     puts e.message + " in topic " + topic_id.to_s
-                    topic = ""
+                    topics[topic_id-first_id] = ""
                 else
                     topics[topic_id-first_id] = topic
                 end
