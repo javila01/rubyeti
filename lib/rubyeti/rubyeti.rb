@@ -269,13 +269,15 @@ class RubyETI
         html_source = ""
         begin
             @hydra_mutex.synchronize {
-                #@hydra_mutex.lock
+                @hydra_mutex.lock
                 html_source = @connection.get_html "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
-                #@hydra_mutex.unlock
+                @hydra_mutex.unlock
             }
         rescue ETIError
             @hydra_mutex.synchronize {
+                @hydra_mutex.lock
                 html_source = @connection.get_html "http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s
+                @hydra_mutex.unlock
             }
             t.archived = true
         else
