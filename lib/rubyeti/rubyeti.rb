@@ -340,8 +340,12 @@ class RubyETI
         topics = []
         threads = []
         i = first_id
+        num_threads = 0
         while i <= last_id do
+            while num_threads > 20
+            end
             threads << Thread.new {
+                num_threads += 1
                 topic_id = i
                 begin
                     puts "getting topic " + topic_id.to_s
@@ -353,6 +357,7 @@ class RubyETI
                 else
                     topics[topic_id-first_id] = topic
                 end
+                num_threads -=1
             }
             i += 1
         end
