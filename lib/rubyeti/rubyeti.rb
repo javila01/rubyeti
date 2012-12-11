@@ -149,6 +149,11 @@ class RubyETI
 
     def initialize
         @connection = RubyETI_connector.new
+        @hydra_mutex = Mutex.new
+    end
+
+    def run
+        @connection.run
     end
 
     def login username, password, session="iphone"
@@ -261,10 +266,17 @@ class RubyETI
 
     def get_topic_by_id id
         t = Topic.new
+        html_source = ""
         begin
-            html_source = @connection.get_html "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
+            @hydra_mutex.synchronize {
+                #@hydra_mutex.lock
+                html_source = @connection.get_html "http://boards.endoftheinter.net/showmessages.php?topic=" + id.to_s
+                #@hydra_mutex.unlock
+            }
         rescue ETIError
-            html_source = @connection.get_html "http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s
+            @hydra_mutex.synchronize {
+                html_source = @connection.get_html "http://archives.endoftheinter.net/showmessages.php?topic=" + id.to_s
+            }
             t.archived = true
         else
             t.archived = false
@@ -285,8 +297,10 @@ class RubyETI
         number_of_pages = next_page_links[0].text.to_i
         # if no links exist, return
         if number_of_pages == 1
+            puts "only one page in topic " + id.to_s
             return t
         else
+            puts "more than one page in topic" + id.to_s
             if t.archived
                 suburl = "archives"
             else
@@ -296,34 +310,56 @@ class RubyETI
             for i in 2..number_of_pages
                 requests << @connection.queue("http://" + suburl + ".endoftheinter.net/showmessages.php?topic=" + t.topic_id.to_s + "&page=" + i.to_s)
             end
-            @connection.run
+            threads = []
+            @count = number_of_pages - 1
             for i in 2..number_of_pages
-                t = parse_topic_html(requests[i-2].response.body, t, i, id)
+                threads << Thread.new {
+                    page_number = i
+                    requests[page_number-2].on_complete do |response|
+                        t = parse_topic_html(response.body, t, page_number, id)
+                        @count = @count - 1
+                    end
+                }
             end
+            while @count > 0
+                @connection.run
+            end
+            return t
         end
-        return t
     end
 
     def get_topics_by_id ids
         topics = []
         for id in ids
-            topics << (get_topic_by_id id)
+            Thread.new {
+                topics << (get_topic_by_id id)
+            }
         end
         return topics
     end
 
     def get_topic_range first_id, last_id
         topics = []
+        threads = []
         i = first_id
         while i <= last_id do
-            begin
-                topic = get_topic_by_id i
-            rescue ETIError
-                topic = ""
-            else
-                topics << topic
-            end
+            threads << Thread.new {
+                topic_id = i
+                begin
+                    puts "getting topic " + topic_id.to_s
+                    topic = get_topic_by_id topic_id
+                    puts "got topic " + topic_id.to_s
+                rescue ETIError => e
+                    puts e.message + " in topic " + topic_id.to_s
+                    topic = ""
+                else
+                    topics[topic_id-first_id] = topic
+                end
+            }
             i += 1
+        end
+        for thread in threads
+            thread.join
         end
         return topics
     end
@@ -512,6 +548,7 @@ private
         html_doc            = Nokogiri::HTML(html_source)
 
         check_for_invalid_topic html_doc
+        check_for_unauthorized_board html_doc
 
         # gets the topic id
         #suggest_tag_link    = html_doc.xpath('//a[contains(@href, "edittags.php")]')
@@ -543,9 +580,9 @@ private
         messages            = html_doc.xpath('//div[@class = "message-container"]/div[@class="message-top"]/a[contains(@href, "message.php")]')
 
         # gets the content of the posts
-        contents            = html_doc.xpath('//div[@class = "message"]')
+        contents            = html_doc.xpath('//td[@class = "message"]')
 
-        # gets the first page of posts
+        # gets the page of posts
         i = 0
         for p in posters
             poster      = p.text
@@ -563,9 +600,9 @@ private
             message_id  = messages[i]["href"]
             message_id  = message_id.partition("=")[2]
             message_id  = message_id.partition("&")[0]
-
+            
             content     = contents[i].text
-
+           
             post_number = (page - 1) * 50 + i
             t.posts[post_number]    =  Post.new(poster, userid, timestamp, message_id, post_number+1, content)
             i           += 1
@@ -578,6 +615,15 @@ private
         for em in ems
             if em.text == "Invalid topic."
                 raise TopicError, "Invalid topic."
+            end
+        end
+    end
+
+    def check_for_unauthorized_board html_doc
+        ems = html_doc.xpath('//em')
+        for em in ems
+            if em.text == "You are not authorized to view messages on this board."
+                raise TopicError, "You are not authorized to view messages on this board."
             end
         end
     end

@@ -20,59 +20,70 @@ class RubyETI_connector
         end
 
         @hydra.queue(request)
-        @hydra.run
+        
+        request.on_complete do
+            response = request.response
+            # checks for suspension
+            body = response.body
+            if body.to_s.partition("You are suspended.")[1] != ""
+                raise LoginError, "You are suspended."
+            end
 
-        response = request.response
-	    # checks for suspension
-	    body = response.body
-	    if body.to_s.partition("You are suspended.")[1] != ""
-	    	raise LoginError, "You are suspended."
-	    end
-
-	    # gets the cookie
-        @cookie = ""
-        nextEntryIsCookie = false
-        for header in response.headers
-            for entry in header
-                for piece in entry
-                    if nextEntryIsCookie
-                            cookie_value = piece.to_s.partition(';')[0]
-                            @cookie += cookie_value + "; "
+            # gets the cookie
+            @cookie = ""
+            nextEntryIsCookie = false
+            for header in response.headers
+                for entry in header
+                    for piece in entry
+                        if nextEntryIsCookie
+                                cookie_value = piece.to_s.partition(';')[0]
+                                @cookie += cookie_value + "; "
+                        end
+                    end
+                    nextEntryIsCookie = false
+                    if entry == "set-cookie" || entry == "Set-Cookie"
+                        nextEntryIsCookie = true
                     end
                 end
-                nextEntryIsCookie = false
-                if entry == "set-cookie" || entry == "Set-Cookie"
-                    nextEntryIsCookie = true
-                end
             end
+            return true
         end
-        true
+
+        @hydra.run
     end
 
     def get_html url
-        test_connection
+        #test_connection
         request = Typhoeus::Request.new(url,
                                         :method => :get,
                                         :headers => {'Cookie' => @cookie, 'User-Agent' => 'rubyeti'})
         @hydra.queue(request)
+        done = false
+        request.on_complete do
+            if request.response.code != 200
+                raise ETIError, "Failed to GET. URL = " + url.to_s + "\nCode = " + request.response.code.to_s
+            end
+            done = true
+        end
         @hydra.run
-
-        if request.response.code != 200
-            raise ETIError, "Failed to GET. URL = " + url.to_s + "\nCode = " + request.response.code.to_s
+        while !done
         end
         request.response.body
     end
 
     def post_html url, body = ""
-        test_connection
+        #test_connection
         request = Typhoeus::Request.new(url,
                                         :method => :post,
                                         :body   => body,
                                         :headers => {'Cookie' => @cookie, 'User-Agent' => 'rubyeti'})
         @hydra.queue(request)
-        @hydra.run
-        return request.response
+       
+        request.on_complete do |response|
+            return request.response
+        end
 
+        @hydra.run
     end
 
     def upload_image image_path
@@ -81,8 +92,12 @@ class RubyETI_connector
                                         :body => {:name => "file", :file => File.open(image_path, "r")},
                                         :headers => {'Cookie' => @cookie, 'User-Agent' => 'rubyeti'} )
         @hydra.queue(request)
+
+        request.on_complete do |response|
+            return request.response
+        end
+
         @hydra.run
-        request.response
     end
 
     def queue url
@@ -98,16 +113,19 @@ class RubyETI_connector
     end
 
     def test_connection
-        request = Typhoeus::Request.new("http://archives.endoftheinter.net/showmessages.php?topic=1",
+        request = Typhoeus::Request.new("http://endoftheinter.net/stats.php",
                                         :method => :get,
                                         :headers => {'Cookie' => @cookie, 'User-Agent' => 'rubyeti'})
         @hydra.queue(request)
-        @hydra.run
-        code = request.response.code
-        if code != 200
-            raise LoginError, "Not logged in to ETI"
-        else 
-            return true
+        
+        request.on_complete do |response|
+            code = request.response.code
+            if code != 200
+                raise LoginError, "Not logged in to ETI"
+            else 
+                return true
+            end
         end
+        @hydra.run
     end
 end
