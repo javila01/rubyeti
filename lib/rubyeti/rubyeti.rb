@@ -295,10 +295,10 @@ class RubyETI
         number_of_pages = next_page_links[0].text.to_i
         # if no links exist, return
         if number_of_pages == 1
-            puts "only one page in topic " + id.to_s
+            #puts "only one page in topic " + id.to_s
             return t
         else
-            puts "more than one page in topic" + id.to_s
+            #puts "more than one page in topic" + id.to_s
             if t.archived
                 suburl = "archives"
             else
@@ -348,11 +348,11 @@ class RubyETI
                 num_threads += 1
                 topic_id = i
                 begin
-                    puts "getting topic " + topic_id.to_s
+                    #puts "getting topic " + topic_id.to_s
                     topic = get_topic_by_id topic_id
-                    puts "got topic " + topic_id.to_s
+                    #puts "got topic " + topic_id.to_s
                 rescue ETIError => e
-                    puts e.message + " in topic " + topic_id.to_s
+                    #puts e.message + " in topic " + topic_id.to_s
                     topics[topic_id-first_id] = ""
                 else
                     topics[topic_id-first_id] = topic
